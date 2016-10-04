@@ -1,25 +1,10 @@
-assets/override
-dist
-build-ios
-*.zip
-server.PID
-mattermost.keystore
-tmp/
-.env
-env.d.ts
-*.apk
-*.aab
-*.ipa
-
-*/**/compass-icons.ttf
-
 # OSX
 #
 .DS_Store
 
 # Xcode
 #
-ios/build/*
+build/
 *.pbxuser
 !default.pbxuser
 *.mode1v3
@@ -33,85 +18,24 @@ xcuserdata
 *.moved-aside
 DerivedData
 *.hmap
+*.ipa
 *.xcuserstate
 project.xcworkspace
-ios/Pods
-.podinstall
-ios/.xcode.env.local
 
-# Android/IntelliJ
+# Android/IJ
 #
+*.iml
 .idea
 .gradle
 local.properties
-*.iml
-*.hprof
-.cxx/
-*.keystore
-!debug.keystore
-android/app/bin
-android/app/build
-android/build
-.settings
-.project
-.classpath
 
 # node.js
 #
 node_modules/
 npm-debug.log
-.npminstall
-yarn-error.log
-.yarninstall
 
-# Vim
-[._]*.s[a-w][a-z]
-[._]s[a-w][a-z]
-*.un~
-Session.vim
-.netrwhist
-*~
-tags
-
-# fastlane
-#
-# It is recommended to not store the screenshots in the git repo. Instead, use fastlane to re-generate the
-# screenshots whenever they are needed.
-# For more information about the recommended setup visit:
-# https://docs.fastlane.tools/best-practices/source-control/
-
-**/fastlane/report.xml
-**/fastlane/Preview.html
-**/fastlane/screenshots
-**/fastlane/test_output
-**/fastlane/.env
-
-# Sentry
-android/sentry.properties
-ios/sentry.properties
-
-# Testing
-.nyc_output
-coverage
-.tmp
-
-# E2E testing
-mattermost-license.txt
-*.mattermost-license
-detox/artifacts
-detox/detox_pixel_*
-
-# Bundle artifact
-*.jsbundle
-.bundle
-
-#editor-settings
-.vscode
-.scannerwork
-launch.json
-
-# Notice.txt generation
-!build/notice-file
-
-# Temporary files created by Metro to check the health of the file watcher
-.metro-health-check*
+# BUCK
+buck-out/
+\.buckd/
+android/app/libs
+android/keystores/debug.keystore
