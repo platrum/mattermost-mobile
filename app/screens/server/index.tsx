@@ -217,20 +217,27 @@ const Server = ({
     };
 
     const handleConnect = async (manualUrl?: string) => {
+        var serverUrl = typeof manualUrl === 'string' ? manualUrl : url;
+        
+        if ( !serverUrl.startsWith('http') ) {
+            serverUrl =  'https://' + serverUrl + '.chat.platrum.ru';
+            setUrl(serverUrl)
+        }
+
         if (buttonDisabled && !manualUrl) {
             return;
         }
-
+        
+        
         if (connecting && cancelPing) {
             cancelPing();
             return;
         }
-
-        const serverUrl = typeof manualUrl === 'string' ? manualUrl : url;
+        
         if (!serverUrl || serverUrl.trim() === '') {
             setUrlError(formatMessage(defaultServerUrlMessage));
             return;
-        }
+        }   
 
         if (!isServerUrlValid(serverUrl)) {
             return;
@@ -267,6 +274,7 @@ const Server = ({
     const handleUrlTextChanged = useCallback((text: string) => {
         setUrlError(undefined);
         setUrl(text);
+        setDisplayName(text);
     }, []);
 
     const isServerUrlValid = (serverUrl?: string) => {

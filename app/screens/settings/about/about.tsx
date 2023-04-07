@@ -4,7 +4,7 @@
 import Clipboard from '@react-native-clipboard/clipboard';
 import React, {useCallback, useMemo} from 'react';
 import {useIntl} from 'react-intl';
-import {Alert, Text, View} from 'react-native';
+import {Alert, Text, Image, View} from 'react-native';
 import DeviceInfo from 'react-native-device-info';
 
 import Config from '@assets/config.json';
@@ -31,6 +31,7 @@ import Title from './title';
 import TosPrivacyContainer from './tos_privacy';
 
 import type {AvailableScreens} from '@typings/screens/navigation';
+import { Dimensions } from 'react-native';
 
 const MATTERMOST_BUNDLE_IDS = ['com.mattermost.rnbeta', 'com.mattermost.rn'];
 
@@ -192,12 +193,14 @@ const About = ({componentId, config, license}: AboutProps) => {
     return (
         <SettingContainer testID='about'>
             <View style={styles.logoContainer}>
-                <CompassIcon
-                    color={theme.centerChannelColor}
-                    name='mattermost'
-                    size={88}
-                    testID='about.logo'
-                />
+               <Image
+                        source={require('@assets/images/logo.png')}
+                            style={{height: 180, resizeMode: 'contain',  alignItems: 'center',
+                            flex: 1,
+                            paddingRight: 15,
+                            paddingLeft: 15,
+                        }}
+                    />    
                 <Title
                     config={config}
                     license={license}
@@ -347,46 +350,32 @@ const About = ({componentId, config, license}: AboutProps) => {
                 <View style={styles.hashContainer}>
                     <View>
                         <FormattedText
-                            defaultMessage='Build Hash:'
-                            id={t('about.hash')}
-                            style={styles.footerTitleText}
-                            testID='about.build_hash.title'
-                        />
-                        <Text
+                            id={t('settings.notice_text')}
+                            defaultMessage='Platrum Chat is made possible by the open source software used in our {platform} and {mobile}.'
                             style={styles.footerText}
-                            testID='about.build_hash.value'
-                        >
-                            {config.BuildHash}
-                        </Text>
-                    </View>
-                    <View>
-                        <FormattedText
-                            defaultMessage='EE Build Hash:'
-                            id={t('about.hashee')}
-                            style={styles.footerTitleText}
-                            testID='about.build_hash_enterprise.title'
+                            values={{
+                                platform: (
+                                    <FormattedText
+                                        defaultMessage='server'
+                                        id={t('settings.notice_platform_link')}
+                                        onPress={handlePlatformNotice}
+                                        style={styles.noticeLink}
+                                    />
+                                ),
+                                mobile: (
+                                    <FormattedText
+                                        defaultMessage='mobile apps'
+                                        id={t('settings.notice_mobile_link')}
+                                        onPress={handleMobileNotice}
+                                        style={[styles.noticeLink, {marginLeft: 5}]}
+                                    />
+                                ),
+                            }}
+                            testID='about.notice_text'
                         />
-                        <Text
-                            style={styles.footerText}
-                            testID='about.build_hash_enterprise.value'
-                        >
-                            {config.BuildHashEnterprise}
-                        </Text>
                     </View>
                 </View>
                 <View style={{marginBottom: 20}}>
-                    <FormattedText
-                        defaultMessage='Build Date:'
-                        id={t('about.date')}
-                        style={styles.footerTitleText}
-                        testID='about.build_date.title'
-                    />
-                    <Text
-                        style={styles.footerText}
-                        testID='about.build_date.value'
-                    >
-                        {config.BuildDate}
-                    </Text>
                 </View>
             </View>
         </SettingContainer>

@@ -14,8 +14,9 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
         subtitle: {
             color: changeOpacity(theme.centerChannelColor, 0.72),
             ...typography('Heading', 400, 'Regular'),
-            textAlign: 'center',
-            paddingHorizontal: 36,
+            textAlign: 'left',
+            paddingHorizontal: 20,
+            paddingVertical: 10,
         },
     };
 });

@@ -42,7 +42,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         paddingHorizontal: 20,
     },
     enterServer: {
-        marginBottom: 24,
+        marginBottom: 12,
     },
     fullWidth: {
         width: '100%',
@@ -50,7 +50,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     chooseText: {
         alignSelf: 'flex-start',
         color: changeOpacity(theme.centerChannelColor, 0.64),
-        marginTop: 8,
+        marginTop: 0,
         ...typography('Body', 75, 'Regular'),
     },
     connectButton: {
@@ -175,8 +175,8 @@ const ServerForm = ({
                     error={urlError}
                     keyboardType='url'
                     label={formatMessage({
-                        id: 'mobile.components.select_server_view.enterServerUrl',
-                        defaultMessage: 'Enter Server URL',
+                        id: 'mobile.components.select_server_view.enterHost',
+                        defaultMessage: 'Enter Host',
                     })}
                     onBlur={onBlur}
                     onChangeText={handleUrlTextChanged}
@@ -215,11 +215,10 @@ const ServerForm = ({
             {!displayNameError &&
             <FormattedText
                 defaultMessage={'Choose a display name for your server'}
-                id={'mobile.components.select_server_view.displayHelp'}
+                id={'mobile.components.select_server_view.hostHelp'}
                 style={styles.chooseText}
                 testID={'server_form.display_help'}
             />
-            }
             <Button
                 containerStyle={[styles.connectButton, styleButtonBackground]}
                 disabled={buttonDisabled}
