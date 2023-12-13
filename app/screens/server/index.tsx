@@ -17,12 +17,13 @@ import AppVersion from '@components/app_version';
 import {Screens, Launch} from '@constants';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {t} from '@i18n';
+import {getServerCredentials} from '@init/credentials';
 import PushNotifications from '@init/push_notifications';
 import NetworkManager from '@managers/network_manager';
 import {getServerByDisplayName, getServerByIdentifier} from '@queries/app/servers';
 import Background from '@screens/background';
 import {dismissModal, goToScreen, loginAnimationOptions, popTopScreen} from '@screens/navigation';
-import {getErrorMessage} from '@utils/client_error';
+import {getErrorMessage} from '@utils/errors';
 import {canReceiveNotifications} from '@utils/push_proxy';
 import {loginOptions} from '@utils/server';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -31,7 +32,6 @@ import {getServerUrlAfterRedirect, isValidUrl, sanitizeUrl} from '@utils/url';
 import ServerForm from './form';
 import ServerHeader from './header';
 
-import type ClientError from '@client/rest/error';
 import type {DeepLinkWithData, LaunchProps} from '@typings/launch';
 import type {AvailableScreens} from '@typings/screens/navigation';
 
@@ -245,7 +245,8 @@ const Server = ({
         }
 
         const server = await getServerByDisplayName(displayName);
-        if (server && server.lastActiveAt > 0) {
+        const credentials = await getServerCredentials(serverUrl);
+        if (server && server.lastActiveAt > 0 && credentials?.token) {
             setButtonDisabled(true);
             setDisplayNameError(formatMessage({
                 id: 'mobile.server_name.exists',
@@ -290,6 +291,10 @@ const Server = ({
         };
 
         const serverUrl = await getServerUrlAfterRedirect(pingUrl, !retryWithHttp);
+        if (!serverUrl) {
+            cancelPing();
+            return;
+        }
         const result = await doPing(serverUrl, true, managedConfig?.timeout ? parseInt(managedConfig?.timeout, 10) : undefined);
 
         if (canceled) {
@@ -301,7 +306,7 @@ const Server = ({
                 const nurl = serverUrl.replace('https:', 'http:');
                 pingServer(nurl, false);
             } else {
-                setUrlError(getErrorMessage(result.error as ClientError, intl));
+                setUrlError(getErrorMessage(result.error, intl));
                 setButtonDisabled(true);
                 setConnecting(false);
             }
@@ -312,15 +317,25 @@ const Server = ({
         const data = await fetchConfigAndLicense(serverUrl, true);
         if (data.error) {
             setButtonDisabled(true);
-            setUrlError(getErrorMessage(data.error as ClientError, intl));
+            setUrlError(getErrorMessage(data.error, intl));
             setConnecting(false);
             return;
         }
 
-        const server = await getServerByIdentifier(data.config!.DiagnosticId);
+        if (!data.config?.DiagnosticId) {
+            setUrlError(formatMessage({
+                id: 'mobile.diagnostic_id.empty',
+                defaultMessage: 'A DiagnosticId value is missing for this server. Contact your system admin to review this value and restart the server.',
+            }));
+            setConnecting(false);
+            return;
+        }
+
+        const server = await getServerByIdentifier(data.config.DiagnosticId);
+        const credentials = await getServerCredentials(serverUrl);
         setConnecting(false);
 
-        if (server && server.lastActiveAt > 0) {
+        if (server && server.lastActiveAt > 0 && credentials?.token) {
             setButtonDisabled(true);
             setUrlError(formatMessage({
                 id: 'mobile.server_identifier.exists',

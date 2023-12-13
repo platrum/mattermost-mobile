@@ -1,10 +1,10 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React from 'react';
+import React, {useCallback} from 'react';
 import {Platform, ScrollView, Text, View} from 'react-native';
 import MathView from 'react-native-math-view';
-import {SafeAreaView, Edge} from 'react-native-safe-area-context';
+import {SafeAreaView, type Edge} from 'react-native-safe-area-context';
 
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
@@ -71,9 +71,11 @@ const Latex = ({componentId, content}: Props) => {
         return <Text style={style.errorText}>{'Render error: ' + error.message}</Text>;
     };
 
-    useAndroidHardwareBackHandler(componentId, () => {
+    const close = useCallback(() => {
         popTopScreen(componentId);
-    });
+    }, [componentId]);
+
+    useAndroidHardwareBackHandler(componentId, close);
 
     return (
         <SafeAreaView

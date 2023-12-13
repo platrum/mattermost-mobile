@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {ClientHeaders, getOrCreateWebSocketClient, WebSocketClientInterface, WebSocketReadyState} from '@mattermost/react-native-network-client';
+import {type ClientHeaders, getOrCreateWebSocketClient, type WebSocketClientInterface, WebSocketReadyState} from '@mattermost/react-native-network-client';
 import {Platform} from 'react-native';
 
 import {WebsocketEvents} from '@constants';
@@ -136,6 +136,14 @@ export default class WebSocketClient {
 
             // Check again if the client is the same, to avoid race conditions
             if (this.conn === client) {
+                // In case turning on/off Wi-fi on Samsung devices
+                // the websocket will call onClose then onError then initialize again with readyState CLOSED, we need to open it again
+                if (this.conn.readyState === WebSocketReadyState.CLOSED) {
+                    if (this.connectionTimeout) {
+                        clearTimeout(this.connectionTimeout);
+                    }
+                    this.conn.open();
+                }
                 return;
             }
             this.conn = client;

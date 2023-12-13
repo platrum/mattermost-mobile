@@ -3,7 +3,7 @@
 
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Keyboard, LayoutChangeEvent, Platform, View} from 'react-native';
+import {Keyboard, type LayoutChangeEvent, Platform, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
 import {addMembersToChannel} from '@actions/remote/channel';
@@ -17,7 +17,7 @@ import {General} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
-import {useModalPosition} from '@hooks/device';
+import {useKeyboardOverlap} from '@hooks/device';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
 import {t} from '@i18n';
 import {dismissModal} from '@screens/navigation';
@@ -126,12 +126,12 @@ export default function ChannelAddMembers({
     const {formatMessage} = intl;
 
     const mainView = useRef<View>(null);
-    const modalPosition = useModalPosition(mainView);
+    const [containerHeight, setContainerHeight] = useState(0);
+    const keyboardOverlap = useKeyboardOverlap(mainView, containerHeight);
 
     const [term, setTerm] = useState('');
     const [addingMembers, setAddingMembers] = useState(false);
     const [selectedIds, setSelectedIds] = useState<{[id: string]: UserProfile}>({});
-    const [containerHeight, setContainerHeight] = useState(0);
 
     const clearSearch = useCallback(() => {
         setTerm('');
@@ -273,7 +273,6 @@ export default function ChannelAddMembers({
                 currentUserId={currentUserId}
                 handleSelectProfile={handleSelectProfile}
                 selectedIds={selectedIds}
-                teammateNameDisplay={teammateNameDisplay}
                 term={term}
                 testID={`${TEST_ID}.user_list`}
                 tutorialWatched={tutorialWatched}
@@ -282,8 +281,7 @@ export default function ChannelAddMembers({
                 createFilter={createUserFilter}
             />
             <SelectedUsers
-                containerHeight={containerHeight}
-                modalPosition={modalPosition}
+                keyboardOverlap={keyboardOverlap}
                 selectedIds={selectedIds}
                 onRemove={handleRemoveProfile}
                 teammateNameDisplay={teammateNameDisplay}

@@ -43,7 +43,9 @@ export async function getServerUrlAfterRedirect(serverUrl: string, useHttp = fal
             url = resp.redirectUrls[resp.redirectUrls.length - 1];
         }
     } catch (error) {
-        // do nothing
+        if (useHttp) {
+            return undefined;
+        }
     }
 
     return sanitizeUrl(url, useHttp);
@@ -176,7 +178,7 @@ export function getYouTubeVideoId(link?: string) {
     return '';
 }
 
-export function tryOpenURL(url: string, onError = emptyFunction, onSuccess = emptyFunction) {
+export function tryOpenURL(url: string, onError: (error: unknown) => void = emptyFunction, onSuccess = emptyFunction) {
     Linking.openURL(url).
         then(onSuccess).
         catch(onError);

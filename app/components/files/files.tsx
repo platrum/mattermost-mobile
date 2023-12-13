@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import React, {useEffect, useMemo, useState} from 'react';
-import {DeviceEventEmitter, StyleProp, StyleSheet, View, ViewStyle} from 'react-native';
+import {DeviceEventEmitter, type StyleProp, StyleSheet, View, type ViewStyle} from 'react-native';
 import Animated, {useDerivedValue} from 'react-native-reanimated';
 
 import {Events} from '@constants';
@@ -42,6 +42,9 @@ const styles = StyleSheet.create({
     },
     failed: {
         opacity: 0.5,
+    },
+    marginTop: {
+        marginTop: 10,
     },
 });
 
@@ -86,7 +89,7 @@ const Files = ({canDownloadFiles, failed, filesInfo, isReplyPost, layoutWidth, l
             }
             return (
                 <View
-                    style={container}
+                    style={[container, styles.marginTop]}
                     key={file.id}
                 >
                     <File

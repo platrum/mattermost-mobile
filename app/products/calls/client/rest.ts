@@ -1,20 +1,22 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import type {ServerChannelState, ApiResp} from '@calls/types/calls';
-import type {CallRecordingState, CallsConfig} from '@mattermost/calls/lib/types';
+import type {ApiResp, CallsVersion} from '@calls/types/calls';
+import type {CallChannelState, CallRecordingState, CallsConfig} from '@mattermost/calls/lib/types';
 import type {RTCIceServer} from 'react-native-webrtc';
 
 export interface ClientCallsMix {
     getEnabled: () => Promise<Boolean>;
-    getCalls: () => Promise<ServerChannelState[]>;
-    getCallForChannel: (channelId: string) => Promise<ServerChannelState>;
+    getCalls: () => Promise<CallChannelState[]>;
+    getCallForChannel: (channelId: string) => Promise<CallChannelState>;
     getCallsConfig: () => Promise<CallsConfig>;
-    enableChannelCalls: (channelId: string, enable: boolean) => Promise<ServerChannelState>;
+    getVersion: () => Promise<CallsVersion>;
+    enableChannelCalls: (channelId: string, enable: boolean) => Promise<CallChannelState>;
     endCall: (channelId: string) => Promise<ApiResp>;
     genTURNCredentials: () => Promise<RTCIceServer[]>;
     startCallRecording: (callId: string) => Promise<ApiResp | CallRecordingState>;
     stopCallRecording: (callId: string) => Promise<ApiResp | CallRecordingState>;
+    dismissCall: (channelId: string) => Promise<ApiResp>;
 }
 
 const ClientCalls = (superclass: any) => class extends superclass {
@@ -51,6 +53,17 @@ const ClientCalls = (superclass: any) => class extends superclass {
         ) as CallsConfig;
     };
 
+    getVersion = async () => {
+        try {
+            return this.doFetch(
+                `${this.getCallsRoute()}/version`,
+                {method: 'get'},
+            );
+        } catch (e) {
+            return {};
+        }
+    };
+
     enableChannelCalls = async (channelId: string, enable: boolean) => {
         return this.doFetch(
             `${this.getCallsRoute()}/${channelId}`,
@@ -82,6 +95,13 @@ const ClientCalls = (superclass: any) => class extends superclass {
     stopCallRecording = async (callID: string) => {
         return this.doFetch(
             `${this.getCallsRoute()}/calls/${callID}/recording/stop`,
+            {method: 'post'},
+        );
+    };
+
+    dismissCall = async (channelID: string) => {
+        return this.doFetch(
+            `${this.getCallsRoute()}/calls/${channelID}/dismiss-notification`,
             {method: 'post'},
         );
     };

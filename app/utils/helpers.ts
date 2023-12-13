@@ -1,10 +1,9 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import moment, {Moment} from 'moment-timezone';
+import moment, {type Moment} from 'moment-timezone';
 import {NativeModules, Platform} from 'react-native';
 
-import {Device} from '@constants';
 import {CUSTOM_STATUS_TIME_PICKER_INTERVALS_IN_MINUTES} from '@constants/custom_status';
 import {STATUS_BAR_HEIGHT} from '@constants/view';
 
@@ -17,7 +16,7 @@ const ShareModule: NativeShareExtension|undefined = Platform.select({android: Na
 // versions, and a non-equal minor version will ignore dot version.
 // currentVersion is a string, e.g '4.6.0'
 // minMajorVersion, minMinorVersion, minDotVersion are integers
-export const isMinimumServerVersion = (currentVersion: string, minMajorVersion = 0, minMinorVersion = 0, minDotVersion = 0): boolean => {
+export const isMinimumServerVersion = (currentVersion = '', minMajorVersion = 0, minMinorVersion = 0, minDotVersion = 0): boolean => {
     if (!currentVersion || typeof currentVersion !== 'string') {
         return false;
     }
@@ -130,13 +129,9 @@ export function getRoundedTime(value: Moment) {
     return start.add(remainder, 'm').seconds(0).milliseconds(0);
 }
 
-export async function isTablet() {
-    if (Device.IS_TABLET) {
-        const {isSplitView} = await isRunningInSplitView();
-        return !isSplitView;
-    }
-
-    return false;
+export function isTablet() {
+    const result: SplitViewResult = isRunningInSplitView();
+    return result.isTablet && !result.isSplitView;
 }
 
 export const pluckUnique = (key: string) => (array: Array<{[key: string]: unknown}>) => Array.from(new Set(array.map((obj) => obj[key])));

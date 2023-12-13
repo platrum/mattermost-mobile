@@ -2,8 +2,8 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useMemo} from 'react';
-import {defineMessages, IntlShape, useIntl} from 'react-intl';
-import {FlatList, Keyboard, ListRenderItemInfo, Platform, SectionList, SectionListData, Text, View} from 'react-native';
+import {defineMessages, type IntlShape, useIntl} from 'react-intl';
+import {FlatList, Keyboard, type ListRenderItemInfo, Platform, SectionList, type SectionListData, Text, View} from 'react-native';
 
 import {storeProfile} from '@actions/local/user';
 import Loading from '@components/loading';
@@ -13,13 +13,14 @@ import {General, Screens} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {useKeyboardHeight} from '@hooks/device';
-import {t} from '@i18n';
 import {openAsBottomSheet} from '@screens/navigation';
 import {
     changeOpacity,
     makeStyleSheetFromTheme,
 } from '@utils/theme';
 import {typography} from '@utils/typography';
+
+import type UserModel from '@typings/database/models/servers/user';
 
 type UserProfileWithChannelAdmin = UserProfile & {scheme_admin?: boolean}
 type RenderItemType = ListRenderItemInfo<UserProfileWithChannelAdmin> & {section?: SectionListData<UserProfileWithChannelAdmin>}
@@ -29,11 +30,11 @@ const SCROLL_EVENT_THROTTLE = 60;
 
 const messages = defineMessages({
     admins: {
-        id: t('mobile.manage_members.section_title_admins'),
+        id: 'mobile.manage_members.section_title_admins',
         defaultMessage: 'CHANNEL ADMINS',
     },
     members: {
-        id: t('mobile.manage_members.section_title_members'),
+        id: 'mobile.manage_members.section_title_members',
         defaultMessage: 'MEMBERS',
     },
 });
@@ -66,12 +67,12 @@ export function createProfilesSections(intl: IntlShape, profiles: UserProfile[],
         return [];
     }
 
-    const sections = new Map<string, UserProfile[]>();
+    const sections = new Map<string, UserProfileWithChannelAdmin[]>();
 
     if (members?.length) {
         // when channel members are provided, build the sections by admins and members
         const membersDictionary = new Map<string, ChannelMembership>();
-        const membersSections = new Map<string, UserProfile[]>();
+        const membersSections = new Map<string, UserProfileWithChannelAdmin[]>();
         const {formatMessage} = intl;
         members.forEach((m) => membersDictionary.set(m.user_id, m));
         profiles.forEach((p) => {
@@ -79,7 +80,7 @@ export function createProfilesSections(intl: IntlShape, profiles: UserProfile[],
             if (member) {
                 const sectionKey = sectionRoleKeyExtractor(member.scheme_admin!).id;
                 const section = membersSections.get(sectionKey) || [];
-                section.push(p);
+                section.push({...p, scheme_admin: member.scheme_admin});
                 membersSections.set(sectionKey, section);
             }
         });
@@ -98,14 +99,38 @@ export function createProfilesSections(intl: IntlShape, profiles: UserProfile[],
     const results = [];
     let index = 0;
     for (const [k, v] of sections) {
-        results.push({
-            first: index === 0,
-            id: k,
-            data: v,
-        });
-        index++;
+        if (v.length) {
+            results.push({
+                first: index === 0,
+                id: k,
+                data: v,
+            });
+            index++;
+        }
     }
     return results;
+}
+
+function createProfiles(profiles: UserProfile[], members?: ChannelMembership[]): UserProfileWithChannelAdmin[] {
+    if (!profiles.length) {
+        return [];
+    }
+
+    const profileMap = new Map<string, UserProfileWithChannelAdmin>();
+    profiles.forEach((profile) => {
+        profileMap.set(profile.id, profile);
+    });
+
+    if (members?.length) {
+        members.forEach((m) => {
+            const profileFound = profileMap.get(m.user_id);
+            if (profileFound) {
+                profileFound.scheme_admin = m.scheme_admin;
+            }
+        });
+    }
+
+    return Array.from(profileMap.values());
 }
 
 const getStyleFromTheme = makeStyleSheetFromTheme((theme) => {
@@ -147,8 +172,7 @@ type Props = {
     profiles: UserProfile[];
     channelMembers?: ChannelMembership[];
     currentUserId: string;
-    teammateNameDisplay: string;
-    handleSelectProfile: (user: UserProfile) => void;
+    handleSelectProfile: (user: UserProfile | UserModel) => void;
     fetchMore?: () => void;
     loading: boolean;
     manageMode?: boolean;
@@ -158,6 +182,7 @@ type Props = {
     testID?: string;
     term?: string;
     tutorialWatched: boolean;
+    includeUserMargin?: boolean;
 }
 
 export default function UserList({
@@ -165,7 +190,6 @@ export default function UserList({
     channelMembers,
     selectedIds,
     currentUserId,
-    teammateNameDisplay,
     handleSelectProfile,
     fetchMore,
     loading,
@@ -175,6 +199,7 @@ export default function UserList({
     term,
     testID,
     tutorialWatched,
+    includeUserMargin,
 }: Props) {
     const intl = useIntl();
     const theme = useTheme();
@@ -192,27 +217,35 @@ export default function UserList({
         }
 
         if (term) {
-            return profiles;
+            return createProfiles(profiles, channelMembers);
         }
 
         return createProfilesSections(intl, profiles, channelMembers);
     }, [channelMembers, loading, profiles, term]);
 
-    const openUserProfile = useCallback(async (profile: UserProfile) => {
-        const {user} = await storeProfile(serverUrl, profile);
-        if (user) {
-            const screen = Screens.USER_PROFILE;
-            const title = intl.formatMessage({id: 'mobile.routes.user_profile', defaultMessage: 'Profile'});
-            const closeButtonId = 'close-user-profile';
-            const props = {
-                closeButtonId,
-                userId: user.id,
-                location: Screens.USER_PROFILE,
-            };
-
-            Keyboard.dismiss();
-            openAsBottomSheet({screen, title, theme, closeButtonId, props});
+    const openUserProfile = useCallback(async (profile: UserProfile | UserModel) => {
+        let user: UserModel;
+        if ('create_at' in profile) {
+            const res = await storeProfile(serverUrl, profile);
+            if (!res.user) {
+                return;
+            }
+            user = res.user;
+        } else {
+            user = profile;
         }
+
+        const screen = Screens.USER_PROFILE;
+        const title = intl.formatMessage({id: 'mobile.routes.user_profile', defaultMessage: 'Profile'});
+        const closeButtonId = 'close-user-profile';
+        const props = {
+            closeButtonId,
+            userId: user.id,
+            location: Screens.USER_PROFILE,
+        };
+
+        Keyboard.dismiss();
+        openAsBottomSheet({screen, title, theme, closeButtonId, props});
     }, []);
 
     const renderItem = useCallback(({item, index, section}: RenderItemType) => {
@@ -237,12 +270,12 @@ export default function UserList({
                 selected={selected}
                 showManageMode={showManageMode}
                 testID='create_direct_message.user_list.user_item'
-                teammateNameDisplay={teammateNameDisplay}
                 tutorialWatched={tutorialWatched}
                 user={item}
+                includeMargin={includeUserMargin}
             />
         );
-    }, [selectedIds, handleSelectProfile, showManageMode, manageMode, teammateNameDisplay, tutorialWatched]);
+    }, [selectedIds, handleSelectProfile, showManageMode, manageMode, tutorialWatched, includeUserMargin]);
 
     const renderLoading = useCallback(() => {
         if (!loading) {
@@ -326,7 +359,7 @@ export default function UserList({
     };
 
     if (term) {
-        return renderFlatList(data as UserProfile[]);
+        return renderFlatList(data as UserProfileWithChannelAdmin[]);
     }
-    return renderSectionList(data as Array<SectionListData<UserProfile>>);
+    return renderSectionList(data as Array<SectionListData<UserProfileWithChannelAdmin>>);
 }

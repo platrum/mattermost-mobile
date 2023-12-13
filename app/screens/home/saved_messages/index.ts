@@ -2,8 +2,7 @@
 // See LICENSE.txt for license information.
 
 import {Q} from '@nozbe/watermelondb';
-import {withDatabase} from '@nozbe/watermelondb/DatabaseProvider';
-import withObservables from '@nozbe/with-observables';
+import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import {of as of$} from 'rxjs';
 import {switchMap} from 'rxjs/operators';
 
@@ -39,7 +38,7 @@ const enhance = withObservables([], ({database}: WithDatabaseArgs) => {
                 return queryPostsById(database, ids, Q.asc).observe();
             }),
         ),
-        currentTimezone: currentUser.pipe((switchMap((user) => of$(getTimezone(user?.timezone || null))))),
+        currentTimezone: currentUser.pipe((switchMap((user) => of$(getTimezone(user?.timezone))))),
         customEmojiNames: queryAllCustomEmojis(database).observe().pipe(
             switchMap((customEmojis) => of$(mapCustomEmojiNames(customEmojis))),
         ),

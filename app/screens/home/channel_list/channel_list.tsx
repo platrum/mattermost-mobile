@@ -7,8 +7,10 @@ import React, {useCallback, useEffect} from 'react';
 import {useIntl} from 'react-intl';
 import {BackHandler, DeviceEventEmitter, StyleSheet, ToastAndroid, View} from 'react-native';
 import Animated, {useAnimatedStyle, withTiming} from 'react-native-reanimated';
-import {Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
+import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 
+import {refetchCurrentUser} from '@actions/remote/user';
+import FloatingCallContainer from '@calls/components/floating_call_container';
 import AnnouncementBanner from '@components/announcement_banner';
 import ConnectionBanner from '@components/connection_banner';
 import TeamSidebar from '@components/team_sidebar';
@@ -37,6 +39,9 @@ type ChannelProps = {
     showToS: boolean;
     launchType: LaunchType;
     coldStart?: boolean;
+    currentUserId?: string;
+    hasCurrentUser: boolean;
+    showIncomingCalls: boolean;
 };
 
 const edges: Edge[] = ['bottom', 'left', 'right'];
@@ -147,6 +152,12 @@ const ChannelListScreen = (props: ChannelProps) => {
         }
     }, [props.showToS]);
 
+    useEffect(() => {
+        if (!props.hasCurrentUser || !props.currentUserId) {
+            refetchCurrentUser(serverUrl, props.currentUserId);
+        }
+    }, [props.currentUserId, props.hasCurrentUser]);
+
     // Init the rate app. Only run the effect on the first render if ToS is not open
     useEffect(() => {
         if (hasRendered) {
@@ -187,6 +198,12 @@ const ChannelListScreen = (props: ChannelProps) => {
                         />
                         {isTablet &&
                             <AdditionalTabletView/>
+                        }
+                        {props.showIncomingCalls && !isTablet &&
+                            <FloatingCallContainer
+                                showIncomingCalls={props.showIncomingCalls}
+                                channelsScreen={true}
+                            />
                         }
                     </Animated.View>
                 </View>

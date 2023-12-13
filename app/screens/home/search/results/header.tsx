@@ -7,17 +7,17 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import Badge from '@components/badge';
 import CompassIcon from '@components/compass_icon';
+import Filter, {DIVIDERS_HEIGHT, FILTER_ITEM_HEIGHT, NUMBER_FILTER_ITEMS} from '@components/files/file_filter';
 import {useTheme} from '@context/theme';
 import {useIsTablet} from '@hooks/device';
 import {TITLE_SEPARATOR_MARGIN, TITLE_SEPARATOR_MARGIN_TABLET, TITLE_HEIGHT} from '@screens/bottom_sheet/content';
 import TeamPickerIcon from '@screens/home/search/team_picker_icon';
 import {bottomSheet} from '@screens/navigation';
-import {FileFilter, FileFilters} from '@utils/file';
+import {type FileFilter, FileFilters} from '@utils/file';
 import {bottomSheetSnapPoint} from '@utils/helpers';
-import {TabTypes, TabType} from '@utils/search';
+import {TabTypes, type TabType} from '@utils/search';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
-import Filter, {DIVIDERS_HEIGHT, FILTER_ITEM_HEIGHT, NUMBER_FILTER_ITEMS} from './filter';
 import SelectButton from './header_button';
 
 import type TeamModel from '@typings/database/models/servers/team';
@@ -27,8 +27,6 @@ type Props = {
     onFilterChanged: (filter: FileFilter) => void;
     selectedTab: TabType;
     selectedFilter: FileFilter;
-    numberMessages: number;
-    numberFiles: number;
     setTeamId: (id: string) => void;
     teamId: string;
     teams: TeamModel[];
@@ -45,7 +43,7 @@ const getStyleFromTheme = makeStyleSheetFromTheme((theme: Theme) => {
         badge: {
             backgroundColor: theme.buttonBg,
             borderColor: theme.centerChannelBg,
-            marginTop: 8,
+            marginTop: 2,
         },
         buttonsContainer: {
             marginBottom: 12,
@@ -65,8 +63,6 @@ const Header = ({
     setTeamId,
     onTabSelect,
     onFilterChanged,
-    numberMessages,
-    numberFiles,
     selectedTab,
     selectedFilter,
     teams,
@@ -122,7 +118,7 @@ const Header = ({
         });
     }, [onFilterChanged, selectedFilter]);
 
-    const filterStyle = useMemo(() => ({marginRight: teams.length > 1 ? 0 : 10}), [teams.length > 1]);
+    const filterStyle = useMemo(() => ({marginRight: teams.length > 1 ? 0 : 8}), [teams.length > 1]);
 
     return (
         <View style={styles.container}>
@@ -130,39 +126,42 @@ const Header = ({
                 <SelectButton
                     selected={selectedTab === TabTypes.MESSAGES}
                     onPress={handleMessagesPress}
-                    text={`${messagesText} (${numberMessages})`}
+                    text={messagesText}
                 />
                 <SelectButton
                     selected={selectedTab === TabTypes.FILES}
                     onPress={handleFilesPress}
-                    text={`${filesText} (${numberFiles})`}
+                    text={filesText}
                 />
                 <View style={styles.iconsContainer}>
-                    {showFilterIcon &&
-                    <View style={filterStyle}>
-                        <CompassIcon
-                            name={'filter-variant'}
-                            size={24}
-                            color={changeOpacity(theme.centerChannelColor, 0.56)}
-                            onPress={handleFilterPress}
+                    {showFilterIcon && (
+                        <View style={filterStyle}>
+                            <CompassIcon
+                                name={'filter-variant'}
+                                size={24}
+                                color={changeOpacity(
+                                    theme.centerChannelColor,
+                                    0.56,
+                                )}
+                                onPress={handleFilterPress}
+                            />
+                            <Badge
+                                style={styles.badge}
+                                visible={hasFilters}
+                                testID={'search.filters.badge'}
+                                value={-1}
+                            />
+                        </View>
+                    )}
+                    {teams.length > 1 && (
+                        <TeamPickerIcon
+                            size={32}
+                            divider={true}
+                            setTeamId={setTeamId}
+                            teamId={teamId}
+                            teams={teams}
                         />
-                        <Badge
-                            style={styles.badge}
-                            visible={hasFilters}
-                            testID={'search.filters.badge'}
-                            value={-1}
-                        />
-                    </View>
-                    }
-                    {teams.length > 1 &&
-                    <TeamPickerIcon
-                        size={32}
-                        divider={true}
-                        setTeamId={setTeamId}
-                        teamId={teamId}
-                        teams={teams}
-                    />
-                    }
+                    )}
                 </View>
             </View>
         </View>
@@ -170,4 +169,3 @@ const Header = ({
 };
 
 export default Header;
-

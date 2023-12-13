@@ -2,19 +2,20 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {ActivityIndicator, DeviceEventEmitter, View, ViewToken} from 'react-native';
+import {ActivityIndicator, DeviceEventEmitter, View, type ViewToken} from 'react-native';
 import Animated, {interpolate, useAnimatedStyle, useSharedValue, withSpring} from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import {resetMessageCount} from '@actions/local/channel';
+import {useCallsAdjustment} from '@calls/hooks';
 import CompassIcon from '@components/compass_icon';
 import FormattedText from '@components/formatted_text';
 import TouchableWithFeedback from '@components/touchable_with_feedback';
 import {Events} from '@constants';
-import {CURRENT_CALL_BAR_HEIGHT, JOIN_CALL_BAR_HEIGHT} from '@constants/view';
 import {useServerUrl} from '@context/server';
-import {useIsTablet} from '@hooks/device';
-import {makeStyleSheetFromTheme, hexToHue} from '@utils/theme';
+import useDidUpdate from '@hooks/did_update';
+import EphemeralStore from '@store/ephemeral_store';
+import {makeStyleSheetFromTheme, hexToHue, changeOpacity} from '@utils/theme';
 import {typography} from '@utils/typography';
 
 import type {PostList} from '@typings/components/post_list';
@@ -32,8 +33,6 @@ type Props = {
     unreadCount: number;
     theme: Theme;
     testID: string;
-    currentCallBarVisible: boolean;
-    joinCallBannerVisible: boolean;
 }
 
 const HIDDEN_TOP = -60;
@@ -58,9 +57,13 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             flexDirection: 'row',
             justifyContent: 'space-evenly',
             alignItems: 'center',
-            paddingLeft: 12,
             width: '100%',
-            height: 42,
+            height: 40,
+            borderRadius: 8,
+            paddingTop: 4,
+            paddingRight: 4,
+            paddingBottom: 4,
+            paddingLeft: 8,
             shadowColor: theme.centerChannelColor,
             shadowOffset: {
                 width: 0,
@@ -68,29 +71,30 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             },
             shadowOpacity: 0.12,
             shadowRadius: 4,
+            elevation: 4,
         },
-        roundBorder: {
-            borderRadius: 8,
+        iconContainer: {
+            top: 1,
+            width: 32,
         },
         icon: {
             fontSize: 18,
             color: theme.buttonColor,
             alignSelf: 'center',
         },
-        iconContainer: {
-            top: 2,
-            width: 22,
+        closeIcon: {
+            color: changeOpacity(theme.buttonColor, 0.56),
         },
         pressContainer: {
             flex: 1,
             flexDirection: 'row',
         },
         textContainer: {
-            paddingLeft: 4,
+            marginLeft: 8,
         },
         text: {
             color: theme.buttonColor,
-            ...typography('Body', 200, 'SemiBold'),
+            ...typography('Body', 100, 'SemiBold'),
         },
     };
 });
@@ -108,24 +112,23 @@ const MoreMessages = ({
     unreadCount,
     testID,
     theme,
-    currentCallBarVisible,
-    joinCallBannerVisible,
 }: Props) => {
     const serverUrl = useServerUrl();
-    const isTablet = useIsTablet();
     const insets = useSafeAreaInsets();
     const pressed = useRef(false);
     const resetting = useRef(false);
     const initialScroll = useRef(false);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(EphemeralStore.isLoadingMessagesForChannel(serverUrl, channelId));
     const [remaining, setRemaining] = useState(0);
     const underlayColor = useMemo(() => `hsl(${hexToHue(theme.buttonBg)}, 50%, 38%)`, [theme]);
-    const top = useSharedValue(0);
-    const adjustedShownTop = SHOWN_TOP + (currentCallBarVisible ? CURRENT_CALL_BAR_HEIGHT : 0) + (joinCallBannerVisible ? JOIN_CALL_BAR_HEIGHT : 0);
-    const adjustTop = isTablet || (isCRTEnabled && rootId);
-    const shownTop = adjustTop ? SHOWN_TOP : adjustedShownTop;
-    const BARS_FACTOR = Math.abs((1) / (HIDDEN_TOP - SHOWN_TOP));
     const styles = getStyleSheet(theme);
+    const top = useSharedValue(0);
+    const callsAdjustment = useCallsAdjustment(serverUrl, channelId);
+
+    // The final top:
+    const adjustedTop = insets.top + callsAdjustment;
+
+    const BARS_FACTOR = Math.abs((1) / (HIDDEN_TOP - SHOWN_TOP));
 
     const animatedStyle = useAnimatedStyle(() => ({
         transform: [{
@@ -140,13 +143,13 @@ const MoreMessages = ({
                 [
                     HIDDEN_TOP,
                     HIDDEN_TOP,
-                    shownTop + (adjustTop ? 0 : insets.top),
-                    shownTop + (adjustTop ? 0 : insets.top),
+                    adjustedTop,
+                    adjustedTop,
                 ],
-                Animated.Extrapolate.CLAMP,
+                'clamp',
             ), {damping: 15}),
         }],
-    }), [shownTop, insets.top, adjustTop]);
+    }), [adjustedTop]);
 
     // Due to the implementation differences "unreadCount" gets updated for a channel on reset but not for a thread.
     // So we maintain a localUnreadCount to hide the indicator when the count is reset.
@@ -219,13 +222,19 @@ const MoreMessages = ({
         scrollToIndex(newMessageLineIndex, true);
     }, [newMessageLineIndex]);
 
+    useDidUpdate(() => {
+        setLoading(EphemeralStore.isLoadingMessagesForChannel(serverUrl, channelId));
+    }, [serverUrl, channelId]);
+
     useEffect(() => {
-        const listener = DeviceEventEmitter.addListener(Events.LOADING_CHANNEL_POSTS, (value: boolean) => {
-            setLoading(value);
+        const listener = DeviceEventEmitter.addListener(Events.LOADING_CHANNEL_POSTS, ({serverUrl: eventServerUrl, channelId: eventChannelId, value}) => {
+            if (eventServerUrl === serverUrl && eventChannelId === channelId) {
+                setLoading(value);
+            }
         });
 
         return () => listener.remove();
-    }, []);
+    }, [serverUrl, channelId]);
 
     useEffect(() => {
         const unregister = registerScrollEndIndexListener(onScrollEndIndex);
@@ -245,8 +254,8 @@ const MoreMessages = ({
     }, [channelId]);
 
     return (
-        <Animated.View style={[styles.animatedContainer, styles.roundBorder, animatedStyle]}>
-            <View style={styles.container}>
+        <Animated.View style={[styles.animatedContainer, animatedStyle]}>
+            <View style={[styles.container]}>
                 <TouchableWithFeedback
                     type={'opacity'}
                     onPress={onPress}
@@ -287,7 +296,7 @@ const MoreMessages = ({
                     <View style={styles.cancelContainer}>
                         <CompassIcon
                             name='close'
-                            style={styles.icon}
+                            style={[styles.icon, styles.closeIcon]}
                         />
                     </View>
                 </TouchableWithFeedback>

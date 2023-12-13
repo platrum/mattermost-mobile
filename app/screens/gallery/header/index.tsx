@@ -2,10 +2,10 @@
 // See LICENSE.txt for license information.
 
 import React, {useMemo} from 'react';
-import {StyleProp, StyleSheet, useWindowDimensions, View, ViewStyle} from 'react-native';
+import {type StyleProp, StyleSheet, useWindowDimensions, View, type ViewStyle} from 'react-native';
 import {TouchableOpacity} from 'react-native-gesture-handler';
-import Animated from 'react-native-reanimated';
-import {SafeAreaView, Edge, useSafeAreaInsets} from 'react-native-safe-area-context';
+import Animated, {type AnimatedStyle} from 'react-native-reanimated';
+import {SafeAreaView, type Edge, useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import CompassIcon from '@components/compass_icon';
 import FormattedText from '@components/formatted_text';
@@ -16,7 +16,7 @@ import {typography} from '@utils/typography';
 type Props = {
     index: number;
     onClose: () => void;
-    style: StyleProp<ViewStyle>;
+    style: StyleProp<AnimatedStyle<ViewStyle>>;
     total: number;
 }
 

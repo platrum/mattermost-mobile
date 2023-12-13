@@ -8,11 +8,11 @@ import DatabaseManager from '@database/manager';
 import {getTranslations, t} from '@i18n';
 import {getChannelById} from '@queries/servers/channel';
 import {getPostById} from '@queries/servers/post';
-import {getCurrentTeamId, getCurrentUserId, prepareCommonSystemValues, PrepareCommonSystemValuesArgs, setCurrentTeamAndChannelId} from '@queries/servers/system';
+import {getCurrentTeamId, getCurrentUserId, prepareCommonSystemValues, type PrepareCommonSystemValuesArgs, setCurrentTeamAndChannelId} from '@queries/servers/system';
 import {addChannelToTeamHistory, addTeamToTeamHistory} from '@queries/servers/team';
-import {getIsCRTEnabled, getThreadById, prepareThreadsFromReceivedPosts, queryThreadsInTeam} from '@queries/servers/thread';
+import {getThreadById, prepareThreadsFromReceivedPosts, queryThreadsInTeam} from '@queries/servers/thread';
 import {getCurrentUser} from '@queries/servers/user';
-import {dismissAllModalsAndPopToRoot, goToScreen} from '@screens/navigation';
+import {dismissAllModals, dismissAllModalsAndPopToRoot, dismissAllOverlays, goToScreen} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
 import NavigationStore from '@store/navigation_store';
 import {isTablet} from '@utils/helpers';
@@ -43,7 +43,7 @@ export const switchToGlobalThreads = async (serverUrl: string, teamId?: string, 
             await operator.batchRecords(models, 'switchToGlobalThreads');
         }
 
-        const isTabletDevice = await isTablet();
+        const isTabletDevice = isTablet();
         if (isTabletDevice) {
             DeviceEventEmitter.emit(Navigation.NAVIGATION_HOME, Screens.GLOBAL_THREADS);
         } else {
@@ -75,20 +75,27 @@ export const switchToThread = async (serverUrl: string, rootId: string, isFromNo
         }
 
         const currentTeamId = await getCurrentTeamId(database);
-        const isTabletDevice = await isTablet();
+        const isTabletDevice = isTablet();
         const teamId = channel.teamId || currentTeamId;
+        const currentThreadId = EphemeralStore.getCurrentThreadId();
 
-        let switchingTeams = false;
-        if (currentTeamId === teamId) {
-            const models = await prepareCommonSystemValues(operator, {
-                currentChannelId: channel.id,
-            });
-            if (models.length) {
-                await operator.batchRecords(models, 'switchToThread');
+        EphemeralStore.setCurrentThreadId(rootId);
+        if (isFromNotification) {
+            if (currentThreadId && currentThreadId === rootId && NavigationStore.getScreensInStack().includes(Screens.THREAD)) {
+                await dismissAllModals();
+                await dismissAllOverlays();
+                return {};
             }
-        } else {
+
+            await dismissAllModalsAndPopToRoot();
+            await NavigationStore.waitUntilScreenIsTop(Screens.HOME);
+            if (currentTeamId !== teamId && isTabletDevice) {
+                DeviceEventEmitter.emit(Navigation.NAVIGATION_HOME, Screens.GLOBAL_THREADS);
+            }
+        }
+
+        if (currentTeamId !== teamId) {
             const modelPromises: Array<Promise<Model[]>> = [];
-            switchingTeams = true;
             modelPromises.push(addTeamToTeamHistory(operator, teamId, true));
             const commonValues: PrepareCommonSystemValuesArgs = {
                 currentChannelId: channel.id,
@@ -99,25 +106,6 @@ export const switchToThread = async (serverUrl: string, rootId: string, isFromNo
             if (models.length) {
                 await operator.batchRecords(models, 'switchToThread');
             }
-        }
-
-        // Modal right buttons
-        const rightButtons = [];
-
-        const isCRTEnabled = await getIsCRTEnabled(database);
-        if (isCRTEnabled) {
-            // CRT: Add follow/following button
-            rightButtons.push({
-                id: 'thread-follow-button',
-                component: {
-                    id: post.id,
-                    name: Screens.THREAD_FOLLOW_BUTTON,
-                    passProps: {
-                        teamId: channel.teamId,
-                        threadId: post.id,
-                    },
-                },
-            });
         }
 
         // Get translation by user locale
@@ -135,15 +123,6 @@ export const switchToThread = async (serverUrl: string, rootId: string, isFromNo
             subtitle = subtitle.replace('{channelName}', channel.displayName);
         }
 
-        EphemeralStore.setCurrentThreadId(rootId);
-
-        if (isFromNotification) {
-            await dismissAllModalsAndPopToRoot();
-            await NavigationStore.waitUntilScreenIsTop(Screens.HOME);
-            if (switchingTeams && isTabletDevice) {
-                DeviceEventEmitter.emit(Navigation.NAVIGATION_HOME, Screens.GLOBAL_THREADS);
-            }
-        }
         goToScreen(Screens.THREAD, '', {rootId}, {
             topBar: {
                 title: {
@@ -158,13 +137,13 @@ export const switchToThread = async (serverUrl: string, rootId: string, isFromNo
                     noBorder: true,
                     active: true,
                 },
-                rightButtons,
             },
         });
 
         return {};
     } catch (error) {
         logError('Failed switchToThread', error);
+        EphemeralStore.setCurrentThreadId('');
         return {error};
     }
 };

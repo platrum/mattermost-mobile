@@ -2,9 +2,9 @@
 // See LICENSE.txt for license information.
 
 import {Provider as EMMProvider} from '@mattermost/react-native-emm';
-import React, {ComponentType} from 'react';
+import React, {type ComponentType} from 'react';
 import {IntlProvider} from 'react-intl';
-import {Platform, StyleProp, ViewStyle} from 'react-native';
+import {Platform, type StyleProp, type ViewStyle} from 'react-native';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import {Navigation} from 'react-native-navigation';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
@@ -15,15 +15,11 @@ import {DEFAULT_LOCALE, getTranslations} from '@i18n';
 
 const withGestures = (Screen: React.ComponentType, styles: StyleProp<ViewStyle>) => {
     return function gestureHoc(props: any) {
-        if (Platform.OS === 'android') {
-            return (
-                <GestureHandlerRootView style={[{flex: 1}, styles]}>
-                    <Screen {...props}/>
-                </GestureHandlerRootView>
-            );
-        }
-
-        return <Screen {...props}/>;
+        return (
+            <GestureHandlerRootView style={[{flex: 1}, styles]}>
+                <Screen {...props}/>
+            </GestureHandlerRootView>
+        );
     };
 };
 
@@ -72,7 +68,10 @@ Navigation.setLazyComponentRegistrator((screenName) => {
             break;
         case Screens.BOTTOM_SHEET:
             screen = withServerDatabase(require('@screens/bottom_sheet').default);
-            break;
+            Navigation.registerComponent(Screens.BOTTOM_SHEET, () =>
+                withGestures(withSafeAreaInsets(withManagedConfig(screen)), undefined),
+            );
+            return;
         case Screens.BROWSE_CHANNELS:
             screen = withServerDatabase(require('@screens/browse_channels').default);
             break;
@@ -82,11 +81,17 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.CHANNEL_NOTIFICATION_PREFERENCES:
             screen = withServerDatabase(require('@screens/channel_notification_preferences').default);
             break;
+        case Screens.CHANNEL_FILES:
+            screen = withServerDatabase(require('@screens/channel_files').default);
+            break;
         case Screens.CHANNEL_INFO:
             screen = withServerDatabase(require('@screens/channel_info').default);
             break;
         case Screens.CODE:
             screen = withServerDatabase(require('@screens/code').default);
+            break;
+        case Screens.CONVERT_GM_TO_CHANNEL:
+            screen = withServerDatabase(require('@screens/convert_gm_to_channel').default);
             break;
         case Screens.CREATE_OR_EDIT_CHANNEL:
             screen = withServerDatabase(require('@screens/create_or_edit_channel').default);
@@ -173,6 +178,9 @@ Navigation.setLazyComponentRegistrator((screenName) => {
         case Screens.POST_OPTIONS:
             screen = withServerDatabase(require('@screens/post_options').default);
             break;
+        case Screens.POST_PRIORITY_PICKER:
+            screen = withServerDatabase(require('@screens/post_priority_picker').default);
+            break;
         case Screens.REACTIONS:
             screen = withServerDatabase(require('@screens/reactions').default);
             break;
@@ -236,6 +244,9 @@ Navigation.setLazyComponentRegistrator((screenName) => {
             break;
         case Screens.TABLE:
             screen = withServerDatabase(require('@screens/table').default);
+            break;
+        case Screens.TEAM_SELECTOR_LIST:
+            screen = withServerDatabase(require('@screens/convert_gm_to_channel/team_selector_list').default);
             break;
         case Screens.TERMS_OF_SERVICE:
             screen = withServerDatabase(require('@screens/terms_of_service').default);

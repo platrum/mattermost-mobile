@@ -6,15 +6,21 @@ import {DeviceEventEmitter} from 'react-native';
 import {handleReconnect} from '@actions/websocket';
 import {Events, General, Preferences} from '@constants';
 import DatabaseManager from '@database/manager';
+import {getPreferenceAsBool} from '@helpers/api/preference';
 import NetworkManager from '@managers/network_manager';
-import {getChannelById} from '@queries/servers/channel';
+import {queryAllUnreadDMsAndGMsIds, getChannelById} from '@queries/servers/channel';
 import {truncateCrtRelatedTables} from '@queries/servers/entry';
-import {querySavedPostsPreferences} from '@queries/servers/preference';
+import {queryPreferencesByCategoryAndName, querySavedPostsPreferences} from '@queries/servers/preference';
 import {getCurrentUserId} from '@queries/servers/system';
 import EphemeralStore from '@store/ephemeral_store';
+import {isDMorGM} from '@utils/channel';
+import {getFullErrorMessage} from '@utils/errors';
+import {logDebug} from '@utils/log';
 import {getUserIdFromChannelName} from '@utils/user';
 
 import {forceLogoutIfNecessary} from './session';
+
+import type ChannelModel from '@typings/database/models/servers/channel';
 
 export type MyPreferencesRequest = {
     preferences?: PreferenceType[];
@@ -22,42 +28,32 @@ export type MyPreferencesRequest = {
 };
 
 export const fetchMyPreferences = async (serverUrl: string, fetchOnly = false): Promise<MyPreferencesRequest> => {
-    let client;
     try {
-        client = NetworkManager.getClient(serverUrl);
-    } catch (error) {
-        return {error};
-    }
+        const client = NetworkManager.getClient(serverUrl);
+        const {operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
 
-    try {
         const preferences = await client.getMyPreferences();
 
         if (!fetchOnly) {
-            const operator = DatabaseManager.serverDatabases[serverUrl]?.operator;
-            if (operator) {
-                await operator.handlePreferences({
-                    prepareRecordsOnly: false,
-                    preferences,
-                    sync: true,
-                });
-            }
+            await operator.handlePreferences({
+                prepareRecordsOnly: false,
+                preferences,
+                sync: true,
+            });
         }
 
         return {preferences};
     } catch (error) {
-        forceLogoutIfNecessary(serverUrl, error as ClientErrorProps);
+        logDebug('error on fetchMyPreferences', getFullErrorMessage(error));
+        forceLogoutIfNecessary(serverUrl, error);
         return {error};
     }
 };
 
 export const saveFavoriteChannel = async (serverUrl: string, channelId: string, isFavorite: boolean) => {
-    const operator = DatabaseManager.serverDatabases[serverUrl]?.operator;
-    if (!operator) {
-        return {error: `${serverUrl} database not found`};
-    }
-
     try {
-        const userId = await getCurrentUserId(operator.database);
+        const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+        const userId = await getCurrentUserId(database);
         const favPref: PreferenceType = {
             category: Preferences.CATEGORIES.FAVORITE_CHANNEL,
             name: channelId,
@@ -71,13 +67,10 @@ export const saveFavoriteChannel = async (serverUrl: string, channelId: string, 
 };
 
 export const savePostPreference = async (serverUrl: string, postId: string) => {
-    const operator = DatabaseManager.serverDatabases[serverUrl]?.operator;
-    if (!operator) {
-        return {error: `${serverUrl} database not found`};
-    }
-
     try {
-        const userId = await getCurrentUserId(operator.database);
+        const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+
+        const userId = await getCurrentUserId(database);
         const pref: PreferenceType = {
             user_id: userId,
             category: Preferences.CATEGORIES.SAVED_POST,
@@ -90,30 +83,26 @@ export const savePostPreference = async (serverUrl: string, postId: string) => {
     }
 };
 
-export const savePreference = async (serverUrl: string, preferences: PreferenceType[]) => {
-    const operator = DatabaseManager.serverDatabases[serverUrl]?.operator;
-    if (!operator) {
-        return {error: `${serverUrl} database not found`};
-    }
-
-    let client;
+export const savePreference = async (serverUrl: string, preferences: PreferenceType[], prepareRecordsOnly = false) => {
     try {
-        client = NetworkManager.getClient(serverUrl);
-    } catch (error) {
-        return {error};
-    }
+        if (!preferences.length) {
+            return {preferences: []};
+        }
 
-    try {
-        const userId = await getCurrentUserId(operator.database);
+        const client = NetworkManager.getClient(serverUrl);
+        const {database, operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+
+        const userId = await getCurrentUserId(database);
         client.savePreferences(userId, preferences);
-        await operator.handlePreferences({
+        const preferenceModels = await operator.handlePreferences({
             preferences,
-            prepareRecordsOnly: false,
+            prepareRecordsOnly,
         });
 
-        return {preferences};
+        return {preferences: preferenceModels};
     } catch (error) {
-        forceLogoutIfNecessary(serverUrl, error as ClientErrorProps);
+        logDebug('error on savePreference', getFullErrorMessage(error));
+        forceLogoutIfNecessary(serverUrl, error);
         return {error};
     }
 };
@@ -141,18 +130,79 @@ export const deleteSavedPost = async (serverUrl: string, postId: string) => {
             preference: pref,
         };
     } catch (error) {
-        forceLogoutIfNecessary(serverUrl, error as ClientErrorProps);
+        logDebug('error on deleteSavedPost', getFullErrorMessage(error));
+        forceLogoutIfNecessary(serverUrl, error);
         return {error};
     }
 };
 
-export const setDirectChannelVisible = async (serverUrl: string, channelId: string, visible = true) => {
-    const database = DatabaseManager.serverDatabases[serverUrl]?.database;
-    if (!database) {
-        return {error: `${serverUrl} database not found`};
+export const openChannelIfNeeded = async (serverUrl: string, channelId: string) => {
+    try {
+        const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+        const channel = await getChannelById(database, channelId);
+        if (!channel || !isDMorGM(channel)) {
+            return {};
+        }
+        const res = await openChannels(serverUrl, [channel]);
+        return res;
+    } catch (error) {
+        forceLogoutIfNecessary(serverUrl, error);
+        return {error};
+    }
+};
+
+export const openAllUnreadChannels = async (serverUrl: string) => {
+    try {
+        const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+        const channels = await queryAllUnreadDMsAndGMsIds(database).fetch();
+        const res = await openChannels(serverUrl, channels);
+        return res;
+    } catch (error) {
+        forceLogoutIfNecessary(serverUrl, error);
+        return {error};
+    }
+};
+
+const openChannels = async (serverUrl: string, channels: ChannelModel[]) => {
+    const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
+    const userId = await getCurrentUserId(database);
+
+    const {DIRECT_CHANNEL_SHOW, GROUP_CHANNEL_SHOW} = Preferences.CATEGORIES;
+    const directChannelShowPreferences = await queryPreferencesByCategoryAndName(database, DIRECT_CHANNEL_SHOW).fetch();
+    const groupChannelShowPreferences = await queryPreferencesByCategoryAndName(database, GROUP_CHANNEL_SHOW).fetch();
+    const showPreferences = directChannelShowPreferences.concat(groupChannelShowPreferences);
+
+    const prefs: PreferenceType[] = [];
+    for (const channel of channels) {
+        const category = channel.type === General.DM_CHANNEL ? DIRECT_CHANNEL_SHOW : GROUP_CHANNEL_SHOW;
+        const name = channel.type === General.DM_CHANNEL ? getUserIdFromChannelName(userId, channel.name) : channel.id;
+        const visible = getPreferenceAsBool(showPreferences, category, name, false);
+        if (visible) {
+            continue;
+        }
+
+        prefs.push(
+            {
+                user_id: userId,
+                category,
+                name,
+                value: 'true',
+            },
+            {
+                user_id: userId,
+                category: Preferences.CATEGORIES.CHANNEL_OPEN_TIME,
+                name: channel.id,
+                value: Date.now().toString(),
+            },
+        );
     }
 
+    return savePreference(serverUrl, prefs);
+};
+
+export const setDirectChannelVisible = async (serverUrl: string, channelId: string, visible = true) => {
     try {
+        const {database} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
         const channel = await getChannelById(database, channelId);
         if (channel?.type === General.DM_CHANNEL || channel?.type === General.GM_CHANNEL) {
             const userId = await getCurrentUserId(database);
@@ -168,9 +218,9 @@ export const setDirectChannelVisible = async (serverUrl: string, channelId: stri
             return savePreference(serverUrl, [pref]);
         }
 
-        return {error: undefined};
+        return {};
     } catch (error) {
-        forceLogoutIfNecessary(serverUrl, error as ClientErrorProps);
+        forceLogoutIfNecessary(serverUrl, error);
         return {error};
     }
 };

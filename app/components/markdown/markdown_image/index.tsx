@@ -5,7 +5,7 @@ import {useManagedConfig} from '@mattermost/react-native-emm';
 import Clipboard from '@react-native-clipboard/clipboard';
 import React, {useCallback, useMemo, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Alert, Platform, StyleProp, Text, TextStyle, TouchableWithoutFeedback, View} from 'react-native';
+import {Alert, Platform, type StyleProp, Text, type TextStyle, TouchableWithoutFeedback, View} from 'react-native';
 import Animated from 'react-native-reanimated';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {SvgUri} from 'react-native-svg';
@@ -157,7 +157,7 @@ const MarkdownImage = ({
                         style={style.bottomSheet}
                     >
                         <SlideUpPanelItem
-                            icon='content-copy'
+                            leftIcon='content-copy'
                             onPress={() => {
                                 dismissBottomSheet();
                                 Clipboard.setString(linkDestination || source);
@@ -167,7 +167,7 @@ const MarkdownImage = ({
                         />
                         <SlideUpPanelItem
                             destructive={true}
-                            icon='cancel'
+                            leftIcon='cancel'
                             onPress={() => {
                                 dismissBottomSheet();
                             }}
@@ -240,7 +240,7 @@ const MarkdownImage = ({
                         <ProgressiveImage
                             forwardRef={ref}
                             id={fileInfo.id!}
-                            defaultSource={{uri: fileInfo.uri!}}
+                            imageUri={fileInfo.uri}
                             onError={handleOnError}
                             resizeMode='contain'
                             style={{width, height}}
@@ -260,7 +260,7 @@ const MarkdownImage = ({
             >
                 <ProgressiveImage
                     id={fileInfo.id!}
-                    defaultSource={{uri: fileInfo.uri!}}
+                    imageUri={fileInfo.uri}
                     onError={handleOnError}
                     resizeMode='contain'
                     style={{width, height}}

@@ -3,11 +3,13 @@
 
 import {Parser} from 'commonmark';
 import Renderer from 'commonmark-react-renderer';
-import React, {ReactElement, useCallback, useMemo, useRef} from 'react';
-import {StyleProp, Text, TextStyle} from 'react-native';
+import React, {type ReactElement, useCallback, useMemo, useRef} from 'react';
+import {type StyleProp, Text, type TextStyle} from 'react-native';
 
 import Emoji from '@components/emoji';
 import {computeTextStyle} from '@utils/markdown';
+
+import AtMention from './at_mention';
 
 import type {MarkdownBaseRenderer, MarkdownEmojiRenderer, MarkdownTextStyles} from '@typings/global/markdown';
 
@@ -45,6 +47,15 @@ const RemoveMarkdown = ({enableEmoji, enableHardBreak, enableSoftBreak, enableCo
         return <Text style={baseStyle}>{literal}</Text>;
     }, [baseStyle]);
 
+    const renderAtMention = ({context, mentionName}: {context: string[]; mentionName: string}) => {
+        return (
+            <AtMention
+                textStyle={computeTextStyle(textStyle, baseStyle, context)}
+                mentionName={mentionName}
+            />
+        );
+    };
+
     const renderCodeSpan = useCallback(({context, literal}: MarkdownBaseRenderer) => {
         if (!enableCodeSpan) {
             return renderText({literal});
@@ -76,7 +87,7 @@ const RemoveMarkdown = ({enableEmoji, enableHardBreak, enableSoftBreak, enableCo
                 code: renderCodeSpan,
                 link: Renderer.forwardChildren,
                 image: renderNull,
-                atMention: Renderer.forwardChildren,
+                atMention: renderAtMention,
                 channelLink: Renderer.forwardChildren,
                 emoji: renderEmoji,
                 hashtag: Renderer.forwardChildren,

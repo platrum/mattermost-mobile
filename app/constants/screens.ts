@@ -9,9 +9,11 @@ export const BROWSE_CHANNELS = 'BrowseChannels';
 export const CALL = 'Call';
 export const CHANNEL = 'Channel';
 export const CHANNEL_ADD_MEMBERS = 'ChannelAddMembers';
+export const CHANNEL_FILES = 'ChannelFiles';
 export const CHANNEL_INFO = 'ChannelInfo';
 export const CHANNEL_NOTIFICATION_PREFERENCES = 'ChannelNotificationPreferences';
 export const CODE = 'Code';
+export const CONVERT_GM_TO_CHANNEL = 'ConvertGMToChannel';
 export const CREATE_DIRECT_MESSAGE = 'CreateDirectMessage';
 export const CREATE_OR_EDIT_CHANNEL = 'CreateOrEditChannel';
 export const CREATE_TEAM = 'CreateTeam';
@@ -40,6 +42,7 @@ export const ONBOARDING = 'Onboarding';
 export const PERMALINK = 'Permalink';
 export const PINNED_MESSAGES = 'PinnedMessages';
 export const POST_OPTIONS = 'PostOptions';
+export const POST_PRIORITY_PICKER = 'PostPriorityPicker';
 export const REACTIONS = 'Reactions';
 export const REVIEW_APP = 'ReviewApp';
 export const SAVED_MESSAGES = 'SavedMessages';
@@ -63,6 +66,7 @@ export const SHARE_FEEDBACK = 'ShareFeedback';
 export const SNACK_BAR = 'SnackBar';
 export const SSO = 'SSO';
 export const TABLE = 'Table';
+export const TEAM_SELECTOR_LIST = 'TeamSelectorList';
 export const TERMS_OF_SERVICE = 'TermsOfService';
 export const THREAD = 'Thread';
 export const THREAD_FOLLOW_BUTTON = 'ThreadFollowButton';
@@ -78,9 +82,11 @@ export default {
     CALL,
     CHANNEL,
     CHANNEL_ADD_MEMBERS,
+    CHANNEL_FILES,
     CHANNEL_INFO,
     CHANNEL_NOTIFICATION_PREFERENCES,
     CODE,
+    CONVERT_GM_TO_CHANNEL,
     CREATE_DIRECT_MESSAGE,
     CREATE_OR_EDIT_CHANNEL,
     CREATE_TEAM,
@@ -109,6 +115,7 @@ export default {
     PERMALINK,
     PINNED_MESSAGES,
     POST_OPTIONS,
+    POST_PRIORITY_PICKER,
     REACTIONS,
     REVIEW_APP,
     SAVED_MESSAGES,
@@ -132,6 +139,7 @@ export default {
     SNACK_BAR,
     SSO,
     TABLE,
+    TEAM_SELECTOR_LIST,
     TERMS_OF_SERVICE,
     THREAD,
     THREAD_FOLLOW_BUTTON,
@@ -166,6 +174,7 @@ export const SCREENS_AS_BOTTOM_SHEET = new Set<string>([
     BOTTOM_SHEET,
     EMOJI_PICKER,
     POST_OPTIONS,
+    POST_PRIORITY_PICKER,
     THREAD_OPTIONS,
     REACTIONS,
     USER_PROFILE,

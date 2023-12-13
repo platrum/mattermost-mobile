@@ -4,7 +4,7 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {FlatList} from 'react-native';
-import {Edge, SafeAreaView} from 'react-native-safe-area-context';
+import {type Edge, SafeAreaView} from 'react-native-safe-area-context';
 
 import {getAllSupportedTimezones} from '@actions/remote/user';
 import Search from '@components/search';
@@ -101,10 +101,10 @@ const SelectTimezones = ({componentId, onBack, currentTimezone}: SelectTimezones
         ));
     }, [searchRegion, timezones, initialScrollIndex]);
 
-    const close = (newTimezone?: string) => {
+    const close = useCallback((newTimezone?: string) => {
         onBack(newTimezone || currentTimezone);
         popTopScreen(componentId);
-    };
+    }, [currentTimezone, componentId]);
 
     const onPressTimezone = useCallback((selectedTimezone: string) => {
         close(selectedTimezone);

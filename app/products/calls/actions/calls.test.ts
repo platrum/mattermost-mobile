@@ -25,23 +25,23 @@ import {
     userJoinedCall,
 } from '@calls/state';
 import {
-    Call,
-    CallsState,
-    ChannelsWithCalls,
-    CurrentCall,
+    type Call,
+    type CallsState,
+    type ChannelsWithCalls,
+    type CurrentCall,
     DefaultCallsConfig,
     DefaultCallsState,
 } from '@calls/types/calls';
+import DatabaseManager from '@database/manager';
 import NetworkManager from '@managers/network_manager';
 
 const mockClient = {
     getCalls: jest.fn(() => [
         {
             call: {
-                users: ['user-1', 'user-2'],
-                states: {
-                    'user-1': {unmuted: true},
-                    'user-2': {unmuted: false},
+                sessions: {
+                    session1: {session_id: 'session1', user_id: 'user-1', unmuted: true},
+                    session2: {session_id: 'session1', user_id: 'user-1', unmuted: false},
                 },
                 start_at: 123,
                 screen_sharing_id: '',
@@ -57,6 +57,7 @@ const mockClient = {
         DefaultEnabled: true,
         last_retrieved_at: 1234,
     })),
+    getVersion: jest.fn(() => ({})),
     getPluginsManifests: jest.fn(() => (
         [
             {id: 'playbooks'},
@@ -66,6 +67,7 @@ const mockClient = {
     enableChannelCalls: jest.fn(),
     startCallRecording: jest.fn(),
     stopCallRecording: jest.fn(),
+    dismissCall: jest.fn(),
 };
 
 jest.mock('@calls/connection/connection', () => ({
@@ -77,17 +79,35 @@ jest.mock('@calls/connection/connection', () => ({
     })),
 }));
 
+jest.mock('@actions/remote/thread', () => ({
+    updateThreadFollowing: jest.fn(() => Promise.resolve({})),
+}));
+
+jest.mock('@queries/servers/thread', () => ({
+    getThreadById: jest.fn(() => Promise.resolve({
+        isFollowing: false,
+    })),
+}));
+
 jest.mock('@calls/alerts');
+jest.mock('react-native-navigation', () => ({
+    Navigation: {
+        pop: jest.fn(() => Promise.resolve({
+            catch: jest.fn(),
+        })),
+    },
+}));
 
 const addFakeCall = (serverUrl: string, channelId: string) => {
-    const call = {
-        participants: {
-            xohi8cki9787fgiryne716u84o: {id: 'xohi8cki9787fgiryne716u84o', muted: false, raisedHand: 0},
-            xohi8cki9787fgiryne716u841: {id: 'xohi8cki9787fgiryne716u84o', muted: true, raisedHand: 0},
-            xohi8cki9787fgiryne716u842: {id: 'xohi8cki9787fgiryne716u84o', muted: false, raisedHand: 0},
-            xohi8cki9787fgiryne716u843: {id: 'xohi8cki9787fgiryne716u84o', muted: true, raisedHand: 0},
-            xohi8cki9787fgiryne716u844: {id: 'xohi8cki9787fgiryne716u84o', muted: false, raisedHand: 0},
-            xohi8cki9787fgiryne716u845: {id: 'xohi8cki9787fgiryne716u84o', muted: true, raisedHand: 0},
+    const call: Call = {
+        id: 'call',
+        sessions: {
+            a23456abcdefghijklmnopqrs: {sessionId: 'a23456abcdefghijklmnopqrs', userId: 'xohi8cki9787fgiryne716u84o', muted: false, raisedHand: 0},
+            a12345667890bcdefghijklmn1: {sessionId: 'a12345667890bcdefghijklmn1', userId: 'xohi8cki9787fgiryne716u84o', muted: true, raisedHand: 0},
+            a12345667890bcdefghijklmn2: {sessionId: 'a12345667890bcdefghijklmn2', userId: 'xohi8cki9787fgiryne716u84o', muted: false, raisedHand: 0},
+            a12345667890bcdefghijklmn3: {sessionId: 'a12345667890bcdefghijklmn3', userId: 'xohi8cki9787fgiryne716u84o', muted: true, raisedHand: 0},
+            a12345667890bcdefghijklmn4: {sessionId: 'a12345667890bcdefghijklmn4', userId: 'xohi8cki9787fgiryne716u84o', muted: false, raisedHand: 0},
+            a12345667890bcdefghijklmn5: {sessionId: 'a12345667890bcdefghijklmn5', userId: 'xohi8cki9787fgiryne716u84o', muted: true, raisedHand: 0},
         },
         channelId,
         startTime: (new Date()).getTime(),
@@ -95,7 +115,8 @@ const addFakeCall = (serverUrl: string, channelId: string) => {
         threadId: 'abcd1234567',
         ownerId: 'xohi8cki9787fgiryne716u84o',
         hostId: 'xohi8cki9787fgiryne716u84o',
-    } as Call;
+        dismissed: {},
+    };
     act(() => {
         State.setCallsState(serverUrl, {myUserId: 'myUserId', calls: {}, enabled: {}});
         State.callStarted(serverUrl, call);
@@ -104,6 +125,8 @@ const addFakeCall = (serverUrl: string, channelId: string) => {
 
 describe('Actions.Calls', () => {
     const {newConnection} = require('@calls/connection/connection');
+    const {updateThreadFollowing} = require('@actions/remote/thread');
+
     InCallManager.setSpeakerphoneOn = jest.fn();
     InCallManager.setForceSpeakerphoneOn = jest.fn();
     // eslint-disable-next-line
@@ -111,7 +134,9 @@ describe('Actions.Calls', () => {
     NetworkManager.getClient = () => mockClient;
     jest.spyOn(Permissions, 'hasMicrophonePermission').mockReturnValue(Promise.resolve(true));
 
-    beforeAll(() => {
+    beforeAll(async () => {
+        await DatabaseManager.init(['server1']);
+
         // create subjects
         const {result} = renderHook(() => {
             return [useCallsState('server1'), useChannelsWithCalls('server1'), useCurrentCall(), useCallsConfig('server1')];
@@ -125,6 +150,7 @@ describe('Actions.Calls', () => {
 
     beforeEach(() => {
         newConnection.mockClear();
+        updateThreadFollowing.mockClear();
         mockClient.getCalls.mockClear();
         mockClient.getCallsConfig.mockClear();
         mockClient.getPluginsManifests.mockClear();
@@ -135,7 +161,7 @@ describe('Actions.Calls', () => {
             setCallsState('server1', DefaultCallsState);
             setChannelsWithCalls('server1', {});
             setCurrentCall(null);
-            setCallsConfig('server1', DefaultCallsConfig);
+            setCallsConfig('server1', {...DefaultCallsConfig, EnableRinging: true});
         });
     });
 
@@ -152,13 +178,13 @@ describe('Actions.Calls', () => {
 
             // manually call newCurrentConnection because newConnection is mocked
             newCurrentCall('server1', 'channel-id', 'myUserId');
-            userJoinedCall('server1', 'channel-id', 'myUserId');
         });
 
         assert.equal(response!.data, 'channel-id');
         assert.equal((result.current[1] as CurrentCall).channelId, 'channel-id');
         expect(newConnection).toBeCalled();
         expect(newConnection.mock.calls[0][1]).toBe('channel-id');
+        expect(updateThreadFollowing).toBeCalled();
 
         await act(async () => {
             CallsActions.leaveCall();
@@ -179,7 +205,7 @@ describe('Actions.Calls', () => {
 
             // manually call newCurrentConnection because newConnection is mocked
             newCurrentCall('server1', 'channel-id', 'myUserId');
-            userJoinedCall('server1', 'channel-id', 'myUserId');
+            userJoinedCall('server1', 'channel-id', 'myUserId', 'mySessionId');
         });
         assert.equal(response!.data, 'channel-id');
         assert.equal((result.current[1] as CurrentCall | null)?.channelId, 'channel-id');
@@ -213,7 +239,7 @@ describe('Actions.Calls', () => {
 
             // manually call newCurrentConnection because newConnection is mocked
             newCurrentCall('server1', 'channel-id', 'myUserId');
-            userJoinedCall('server1', 'channel-id', 'myUserId');
+            userJoinedCall('server1', 'channel-id', 'myUserId', 'mySessionId');
         });
         assert.equal(response!.data, 'channel-id');
         assert.equal((result.current[1] as CurrentCall | null)?.channelId, 'channel-id');
@@ -243,7 +269,7 @@ describe('Actions.Calls', () => {
 
             // manually call newCurrentConnection because newConnection is mocked
             newCurrentCall('server1', 'channel-id', 'myUserId');
-            userJoinedCall('server1', 'channel-id', 'myUserId');
+            userJoinedCall('server1', 'channel-id', 'myUserId', 'mySessionId');
         });
         assert.equal(response!.data, 'channel-id');
         assert.equal((result.current[1] as CurrentCall | null)?.channelId, 'channel-id');
@@ -361,5 +387,13 @@ describe('Actions.Calls', () => {
         expect(mockClient.stopCallRecording).toBeCalledWith('channel-id');
         expect(needsRecordingErrorAlert).toBeCalled();
         expect(needsRecordingWillBePostedAlert).toBeCalled();
+    });
+
+    it('dismissIncomingCall', async () => {
+        await act(async () => {
+            await CallsActions.dismissIncomingCall('server1', 'channel-id');
+        });
+
+        expect(mockClient.dismissCall).toBeCalledWith('channel-id');
     });
 });

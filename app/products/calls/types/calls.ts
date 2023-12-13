@@ -24,8 +24,33 @@ export const DefaultCallsState: CallsState = {
     enabled: {},
 };
 
+export enum ChannelType {
+    DM,
+    GM
+}
+
+export type IncomingCallNotification = {
+    serverUrl: string;
+    myUserId: string;
+    callID: string;
+    channelID: string;
+    callerID: string;
+    callerModel?: UserModel;
+    startAt: number;
+    type: ChannelType;
+}
+
+export type IncomingCalls = {
+    incomingCalls: IncomingCallNotification[];
+}
+
+export const DefaultIncomingCalls: IncomingCalls = {
+    incomingCalls: [],
+};
+
 export type Call = {
-    participants: Dictionary<CallParticipant>;
+    id: string;
+    sessions: Dictionary<CallSession>;
     channelId: string;
     startTime: number;
     screenOn: string;
@@ -33,28 +58,42 @@ export type Call = {
     ownerId: string;
     recState?: CallRecordingState;
     hostId: string;
+    dismissed: Dictionary<boolean>;
 }
 
 export const DefaultCall: Call = {
-    participants: {},
+    id: '',
+    sessions: {},
     channelId: '',
     startTime: 0,
     screenOn: '',
     threadId: '',
     ownerId: '',
     hostId: '',
+    dismissed: {},
 };
+
+export enum AudioDevice {
+    Earpiece = 'EARPIECE',
+    Speakerphone = 'SPEAKER_PHONE',
+    Bluetooth = 'BLUETOOTH',
+    WiredHeadset = 'WIRED_HEADSET',
+    None = 'NONE',
+}
 
 export type CurrentCall = Call & {
     connected: boolean;
     serverUrl: string;
     myUserId: string;
+    mySessionId: string;
     screenShareURL: string;
     speakerphoneOn: boolean;
+    audioDeviceInfo: AudioDeviceInfo;
     voiceOn: Dictionary<boolean>;
     micPermissionsErrorDismissed: boolean;
     reactionStream: ReactionStreamEmoji[];
-    recAcknowledged: boolean;
+    callQualityAlert: boolean;
+    callQualityAlertDismissed: number;
 }
 
 export const DefaultCurrentCall: CurrentCall = {
@@ -62,16 +101,20 @@ export const DefaultCurrentCall: CurrentCall = {
     connected: false,
     serverUrl: '',
     myUserId: '',
+    mySessionId: '',
     screenShareURL: '',
     speakerphoneOn: false,
+    audioDeviceInfo: {availableAudioDeviceList: [], selectedAudioDevice: AudioDevice.None},
     voiceOn: {},
     micPermissionsErrorDismissed: false,
     reactionStream: [],
-    recAcknowledged: false,
+    callQualityAlert: false,
+    callQualityAlertDismissed: 0,
 };
 
-export type CallParticipant = {
-    id: string;
+export type CallSession = {
+    sessionId: string;
+    userId: string;
     muted: boolean;
     raisedHand: number;
     userModel?: UserModel;
@@ -79,29 +122,6 @@ export type CallParticipant = {
 }
 
 export type ChannelsWithCalls = Dictionary<boolean>;
-
-export type ServerChannelState = {
-    channel_id: string;
-    enabled?: boolean;
-    call?: ServerCallState;
-}
-
-export type ServerUserState = {
-    unmuted: boolean;
-    raised_hand: number;
-}
-
-export type ServerCallState = {
-    id: string;
-    start_at: number;
-    users: string[];
-    states: ServerUserState[];
-    thread_id: string;
-    screen_sharing_id: string;
-    owner_id: string;
-    host_id: string;
-    recording: CallRecordingState;
-}
 
 export type CallsConnection = {
     disconnect: () => void;
@@ -117,11 +137,13 @@ export type CallsConnection = {
 export type CallsConfigState = CallsConfig & {
     AllowEnableCalls: boolean;
     pluginEnabled: boolean;
+    version: CallsVersion;
     last_retrieved_at: number;
 }
 
 export const DefaultCallsConfig: CallsConfigState = {
     pluginEnabled: false,
+    version: {},
     ICEServers: [], // deprecated
     ICEServersConfigs: [],
     AllowEnableCalls: false,
@@ -133,6 +155,9 @@ export const DefaultCallsConfig: CallsConfigState = {
     EnableRecordings: false,
     MaxRecordingDuration: 60,
     AllowScreenSharing: true,
+    EnableSimulcast: false,
+    EnableRinging: false,
+    EnableTranscriptions: false,
 };
 
 export type ApiResp = {
@@ -146,4 +171,25 @@ export type ReactionStreamEmoji = {
     latestTimestamp: number;
     count: number;
     literal?: string;
+};
+
+export type CallsTheme = Theme & {
+    callsBg: string;
+    callsBgRgb: string;
+    callsBadgeBg: string;
+};
+
+export type AudioDeviceInfoRaw = {
+    availableAudioDeviceList: string;
+    selectedAudioDevice: AudioDevice;
+};
+
+export type AudioDeviceInfo = {
+    availableAudioDeviceList: AudioDevice[];
+    selectedAudioDevice: AudioDevice;
+};
+
+export type CallsVersion = {
+    version?: string;
+    build?: string;
 };

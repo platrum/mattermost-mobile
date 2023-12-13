@@ -1,10 +1,9 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {withDatabase} from '@nozbe/watermelondb/DatabaseProvider';
-import withObservables from '@nozbe/with-observables';
-import DateTimePicker, {DateTimePickerEvent} from '@react-native-community/datetimepicker';
-import moment, {Moment} from 'moment-timezone';
+import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
+import DateTimePicker, {type DateTimePickerEvent} from '@react-native-community/datetimepicker';
+import moment, {type Moment} from 'moment-timezone';
 import React, {useState} from 'react';
 import {View, Button, Platform} from 'react-native';
 import {of as of$} from 'rxjs';

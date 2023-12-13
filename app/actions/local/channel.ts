@@ -14,7 +14,7 @@ import {
     getMyChannel, getChannelById, queryUsersOnChannel, queryUserChannelsByTypes,
 } from '@queries/servers/channel';
 import {queryDisplayNamePreferences} from '@queries/servers/preference';
-import {prepareCommonSystemValues, PrepareCommonSystemValuesArgs, getCommonSystemValues, getCurrentTeamId, setCurrentChannelId, getCurrentUserId, getConfig, getLicense} from '@queries/servers/system';
+import {prepareCommonSystemValues, type PrepareCommonSystemValuesArgs, getCommonSystemValues, getCurrentTeamId, setCurrentChannelId, getCurrentUserId, getConfig, getLicense} from '@queries/servers/system';
 import {addChannelToTeamHistory, addTeamToTeamHistory, getTeamById, removeChannelFromTeamHistory} from '@queries/servers/team';
 import {getCurrentUser, queryUsersById} from '@queries/servers/user';
 import {dismissAllModalsAndPopToRoot, dismissAllModalsAndPopToScreen} from '@screens/navigation';
@@ -32,7 +32,7 @@ export async function switchToChannel(serverUrl: string, channelId: string, team
         const {database, operator} = DatabaseManager.getServerDatabaseAndOperator(serverUrl);
         let models: Model[] = [];
         const dt = Date.now();
-        const isTabletDevice = await isTablet();
+        const isTabletDevice = isTablet();
         const system = await getCommonSystemValues(database);
         const member = await getMyChannel(database, channelId);
 

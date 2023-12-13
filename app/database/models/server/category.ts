@@ -3,7 +3,7 @@
 
 import {Relation, Query, Q} from '@nozbe/watermelondb';
 import {children, field, immutableRelation, lazy} from '@nozbe/watermelondb/decorators';
-import Model, {Associations} from '@nozbe/watermelondb/Model';
+import Model, {type Associations} from '@nozbe/watermelondb/Model';
 import {map, distinctUntilChanged} from 'rxjs';
 
 import {MM_TABLES} from '@constants/database';
@@ -120,7 +120,7 @@ export default class CategoryModel extends Model implements CategoryInterface {
     toCategoryWithChannels = async (): Promise<CategoryWithChannels> => {
         const categoryChannels = await this.categoryChannels.fetch();
         const orderedChannelIds = categoryChannels.sort((a, b) => {
-            return b.sortOrder - a.sortOrder;
+            return a.sortOrder - b.sortOrder;
         }).map((cc) => cc.channelId);
 
         return {

@@ -1,7 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useMemo} from 'react';
+import React, {useCallback, useMemo} from 'react';
 import {useIntl} from 'react-intl';
 
 import SettingContainer from '@components/settings/container';
@@ -53,7 +53,7 @@ const TIMEZONE_FORMAT = [
 
 type DisplayProps = {
     componentId: AvailableScreens;
-    currentUser: UserModel;
+    currentUser?: UserModel;
     hasMilitaryTimeFormat: boolean;
     isCRTEnabled: boolean;
     isCRTSwitchEnabled: boolean;
@@ -64,7 +64,7 @@ type DisplayProps = {
 const Display = ({componentId, currentUser, hasMilitaryTimeFormat, isCRTEnabled, isCRTSwitchEnabled, isThemeSwitchingEnabled, isTimezoneEnabled}: DisplayProps) => {
     const intl = useIntl();
     const theme = useTheme();
-    const timezone = useMemo(() => getUserTimezoneProps(currentUser), [currentUser.timezone]);
+    const timezone = useMemo(() => getUserTimezoneProps(currentUser), [currentUser?.timezone]);
 
     const goToThemeSettings = preventDoubleTap(() => {
         const screen = Screens.SETTINGS_DISPLAY_THEME;
@@ -90,9 +90,11 @@ const Display = ({componentId, currentUser, hasMilitaryTimeFormat, isCRTEnabled,
         gotoSettingsScreen(screen, title);
     });
 
-    useAndroidHardwareBackHandler(componentId, () => {
+    const close = useCallback(() => {
         popTopScreen(componentId);
-    });
+    }, [componentId]);
+
+    useAndroidHardwareBackHandler(componentId, close);
 
     return (
         <SettingContainer testID='display_settings'>

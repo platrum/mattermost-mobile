@@ -12,7 +12,7 @@ import SlideUpPanelItem from '@components/slide_up_panel_item';
 import {General} from '@constants';
 import {useServerUrl} from '@context/server';
 import {useIsTablet} from '@hooks/device';
-import {dismissAllModals, dismissBottomSheet, popToRoot} from '@screens/navigation';
+import {dismissAllModalsAndPopToRoot, dismissBottomSheet} from '@screens/navigation';
 
 type Props = {
     isOptionItem?: boolean;
@@ -31,8 +31,7 @@ const LeaveChannelLabel = ({canLeave, channelId, displayName, isOptionItem, type
     const close = async () => {
         await dismissBottomSheet();
         if (!isTablet) {
-            await dismissAllModals();
-            popToRoot();
+            await dismissAllModalsAndPopToRoot();
         }
     };
 
@@ -175,7 +174,7 @@ const LeaveChannelLabel = ({canLeave, channelId, displayName, isOptionItem, type
     return (
         <SlideUpPanelItem
             destructive={true}
-            icon={icon}
+            leftIcon={icon}
             onPress={onLeave}
             text={leaveText}
             testID={testID}

@@ -3,7 +3,7 @@
 
 import {debounce} from 'lodash';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {Platform, SectionList, SectionListData, SectionListRenderItemInfo, StyleProp, ViewStyle} from 'react-native';
+import {Platform, SectionList, type SectionListData, type SectionListRenderItemInfo, type StyleProp, type ViewStyle} from 'react-native';
 
 import {searchGroupsByName, searchGroupsByNameInChannel, searchGroupsByNameInTeam} from '@actions/local/group';
 import {searchUsers} from '@actions/remote/user';
@@ -42,7 +42,7 @@ const getMatchTermForAtMention = (() => {
     return (value: string, isSearch: boolean) => {
         if (value !== lastValue || isSearch !== lastIsSearch) {
             const regex = isSearch ? AT_MENTION_SEARCH_REGEX : AT_MENTION_REGEX;
-            let term = value;
+            let term = value.toLowerCase();
             if (term.startsWith('from: @') || term.startsWith('from:@')) {
                 term = term.replace('@', '');
             }

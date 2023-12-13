@@ -1,8 +1,8 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {ReactElement, ReactNode} from 'react';
-import {StyleProp, View, ViewStyle} from 'react-native';
+import React, {type ReactElement, type ReactNode} from 'react';
+import {type StyleProp, View, type ViewStyle} from 'react-native';
 
 import {useTheme} from '@context/theme';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
@@ -45,9 +45,11 @@ const MarkdownTableRow = ({isFirstRow, isLastRow, children}: MarkdownTableRowPro
     // Add an extra prop to the last cell so that it knows not to render a right border since the container
     // will handle that
     const renderChildren = React.Children.toArray(children) as ReactElement[];
-    renderChildren[renderChildren.length - 1] = React.cloneElement(renderChildren[renderChildren.length - 1], {
-        isLastCell: true,
-    });
+    if (renderChildren.length > 0) {
+        renderChildren[renderChildren.length - 1] = React.cloneElement(renderChildren[renderChildren.length - 1], {
+            isLastCell: true,
+        });
+    }
 
     return (
         <View

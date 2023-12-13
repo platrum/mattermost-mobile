@@ -3,13 +3,13 @@ package com.mattermost.helpers.database_extension
 import com.facebook.react.bridge.ReadableMap
 import com.mattermost.helpers.DatabaseHelper
 import com.mattermost.helpers.ReadableMapUtils
-import com.nozbe.watermelondb.Database
+import com.nozbe.watermelondb.WMDatabase
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import kotlin.Exception
 
-internal fun queryLastPostCreateAt(db: Database?, channelId: String): Double? {
+internal fun queryLastPostCreateAt(db: WMDatabase?, channelId: String): Double? {
     try {
         if (db != null) {
             val postsInChannelQuery = "SELECT earliest, latest FROM PostsInChannel WHERE channel_id=? ORDER BY latest DESC LIMIT 1"
@@ -35,7 +35,7 @@ internal fun queryLastPostCreateAt(db: Database?, channelId: String): Double? {
     return null
 }
 
-fun queryPostSinceForChannel(db: Database?, channelId: String): Double? {
+fun queryPostSinceForChannel(db: WMDatabase?, channelId: String): Double? {
     try {
         if (db != null) {
             val postsInChannelQuery = "SELECT last_fetched_at FROM MyChannel WHERE id=? LIMIT 1"
@@ -57,7 +57,7 @@ fun queryPostSinceForChannel(db: Database?, channelId: String): Double? {
     return null
 }
 
-fun queryLastPostInThread(db: Database?, rootId: String): Double? {
+fun queryLastPostInThread(db: WMDatabase?, rootId: String): Double? {
     try {
         if (db != null) {
             val query = "SELECT create_at FROM Post WHERE root_id=? AND delete_at=0 ORDER BY create_at DESC LIMIT 1"
@@ -75,7 +75,7 @@ fun queryLastPostInThread(db: Database?, rootId: String): Double? {
     return null
 }
 
-internal fun insertPost(db: Database, post: JSONObject) {
+internal fun insertPost(db: WMDatabase, post: JSONObject) {
     try {
         val id = try { post.getString("id") } catch (e: JSONException) { return }
         val channelId = try { post.getString("channel_id") } catch (e: JSONException) { return }
@@ -86,6 +86,7 @@ internal fun insertPost(db: Database, post: JSONObject) {
         val editAt = try { post.getDouble("edit_at") } catch (e: JSONException) { 0 }
         val isPinned = try { post.getBoolean("is_pinned") } catch (e: JSONException) { false }
         val message = try { post.getString("message") } catch (e: JSONException) { "" }
+        val messageSource = try { post.getString("message_source") } catch (e: JSONException) { "" }
         val metadata = try { post.getJSONObject("metadata") } catch (e: JSONException) { JSONObject() }
         val originalId = try { post.getString("original_id") } catch (e: JSONException) { "" }
         val pendingId = try { post.getString("pending_post_id") } catch (e: JSONException) { "" }
@@ -100,13 +101,13 @@ internal fun insertPost(db: Database, post: JSONObject) {
         db.execute(
                 """
                 INSERT INTO Post 
-                (id, channel_id, create_at, delete_at, update_at, edit_at, is_pinned, message, metadata, original_id, pending_post_id, 
+                (id, channel_id, create_at, delete_at, update_at, edit_at, is_pinned, message, message_source, metadata, original_id, pending_post_id, 
                 previous_post_id, root_id, type, user_id, props, _changed, _status) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', 'created')
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', 'created')
                 """.trimIndent(),
                 arrayOf(
                         id, channelId, createAt, deleteAt, updateAt, editAt,
-                        isPinned, message, metadata.toString(),
+                        isPinned, message, messageSource, metadata.toString(),
                         originalId, pendingId, prevId, rootId,
                         type, userId, props
                 )
@@ -128,7 +129,7 @@ internal fun insertPost(db: Database, post: JSONObject) {
     }
 }
 
-internal fun updatePost(db: Database, post: JSONObject) {
+internal fun updatePost(db: WMDatabase, post: JSONObject) {
     try {
         val id = try { post.getString("id") } catch (e: JSONException) { return }
         val channelId = try { post.getString("channel_id") } catch (e: JSONException) { return }
@@ -139,6 +140,7 @@ internal fun updatePost(db: Database, post: JSONObject) {
         val editAt = try { post.getDouble("edit_at") } catch (e: JSONException) { 0 }
         val isPinned = try { post.getBoolean("is_pinned") } catch (e: JSONException) { false }
         val message = try { post.getString("message") } catch (e: JSONException) { "" }
+        val messageSource = try { post.getString("message_source") } catch (e: JSONException) { "" }
         val metadata = try { post.getJSONObject("metadata") } catch (e: JSONException) { JSONObject() }
         val originalId = try { post.getString("original_id") } catch (e: JSONException) { "" }
         val pendingId = try { post.getString("pending_post_id") } catch (e: JSONException) { "" }
@@ -154,13 +156,13 @@ internal fun updatePost(db: Database, post: JSONObject) {
         db.execute(
                 """
                 UPDATE Post SET channel_id = ?, create_at = ?, delete_at = ?, update_at =?, edit_at =?, 
-                is_pinned = ?, message = ?, metadata = ?, original_id = ?, pending_post_id = ?, previous_post_id = ?, 
+                is_pinned = ?, message = ?, message_source = ?, metadata = ?, original_id = ?, pending_post_id = ?, previous_post_id = ?, 
                 root_id = ?, type = ?, user_id = ?, props = ?, _status = 'updated' 
                 WHERE id = ?
                 """.trimIndent(),
                 arrayOf(
                         channelId, createAt, deleteAt, updateAt, editAt,
-                        isPinned, message, metadata.toString(),
+                        isPinned, message, messageSource, metadata.toString(),
                         originalId, pendingId, prevId, rootId,
                         type, userId, props,
                         id,
@@ -180,7 +182,7 @@ internal fun updatePost(db: Database, post: JSONObject) {
     }
 }
 
-fun DatabaseHelper.handlePosts(db: Database, postsData: ReadableMap?, channelId: String, receivingThreads: Boolean) {
+fun DatabaseHelper.handlePosts(db: WMDatabase, postsData: ReadableMap?, channelId: String, receivingThreads: Boolean) {
     // Posts, PostInChannel, PostInThread, Reactions, Files, CustomEmojis, Users
     try {
         if (postsData != null) {

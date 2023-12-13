@@ -2,12 +2,11 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useEffect, useRef, useState} from 'react';
-import {LayoutChangeEvent, StyleSheet, View} from 'react-native';
-import {Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
+import {type LayoutChangeEvent, StyleSheet, View} from 'react-native';
+import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 
-import CurrentCallBar from '@calls/components/current_call_bar';
+import {storeLastViewedChannelIdAndServer, removeLastViewedChannelIdAndServer} from '@actions/app/global';
 import FloatingCallContainer from '@calls/components/floating_call_container';
-import JoinCallBanner from '@calls/components/join_call_banner';
 import FreezeScreen from '@components/freeze_screen';
 import PostDraft from '@components/post_draft';
 import {Screens} from '@constants';
@@ -23,19 +22,24 @@ import EphemeralStore from '@store/ephemeral_store';
 
 import ChannelPostList from './channel_post_list';
 import ChannelHeader from './header';
+import useGMasDMNotice from './use_gm_as_dm_notice';
 
+import type PreferenceModel from '@typings/database/models/servers/preference';
 import type {AvailableScreens} from '@typings/screens/navigation';
 import type {KeyboardTrackingViewRef} from 'react-native-keyboard-tracking-view';
 
 type ChannelProps = {
-    serverUrl: string;
     channelId: string;
     componentId?: AvailableScreens;
-    isCallInCurrentChannel: boolean;
+    showJoinCallBanner: boolean;
     isInACall: boolean;
-    isInCurrentChannelCall: boolean;
     isCallsEnabledInChannel: boolean;
+    showIncomingCalls: boolean;
     isTabletView?: boolean;
+    dismissedGMasDMNotice: PreferenceModel[];
+    currentUserId: string;
+    channelType: ChannelType;
+    hasGMasDMFeature: boolean;
 };
 
 const edges: Edge[] = ['left', 'right'];
@@ -48,15 +52,19 @@ const styles = StyleSheet.create({
 });
 
 const Channel = ({
-    serverUrl,
     channelId,
     componentId,
-    isCallInCurrentChannel,
+    showJoinCallBanner,
     isInACall,
-    isInCurrentChannelCall,
     isCallsEnabledInChannel,
+    showIncomingCalls,
     isTabletView,
+    dismissedGMasDMNotice,
+    channelType,
+    currentUserId,
+    hasGMasDMFeature,
 }: ChannelProps) => {
+    useGMasDMNotice(currentUserId, channelType, dismissedGMasDMNotice, hasGMasDMFeature);
     const isTablet = useIsTablet();
     const insets = useSafeAreaInsets();
     const [shouldRenderPosts, setShouldRenderPosts] = useState(false);
@@ -66,9 +74,9 @@ const Channel = ({
     const postDraftRef = useRef<KeyboardTrackingViewRef>(null);
     const [containerHeight, setContainerHeight] = useState(0);
     const shouldRender = !switchingTeam && !switchingChannels && shouldRenderPosts && Boolean(channelId);
-    const handleBack = () => {
+    const handleBack = useCallback(() => {
         popTopScreen(componentId);
-    };
+    }, [componentId]);
 
     useKeyboardTrackingPaused(postDraftRef, channelId, trackKeyboardForScreens);
     useAndroidHardwareBackHandler(componentId, handleBack);
@@ -86,9 +94,12 @@ const Channel = ({
             EphemeralStore.removeSwitchingToChannel(channelId);
         }, 500);
 
+        storeLastViewedChannelIdAndServer(channelId);
+
         return () => {
             cancelAnimationFrame(raf);
             clearTimeout(t);
+            removeLastViewedChannelIdAndServer();
             EphemeralStore.removeSwitchingToChannel(channelId);
         };
     }, [channelId]);
@@ -97,21 +108,7 @@ const Channel = ({
         setContainerHeight(e.nativeEvent.layout.height);
     }, []);
 
-    let callsComponents: JSX.Element | null = null;
-    const showJoinCallBanner = isCallInCurrentChannel && !isInCurrentChannelCall;
-    if (showJoinCallBanner || isInACall) {
-        callsComponents = (
-            <FloatingCallContainer>
-                {showJoinCallBanner &&
-                    <JoinCallBanner
-                        serverUrl={serverUrl}
-                        channelId={channelId}
-                    />
-                }
-                {isInACall && <CurrentCallBar/>}
-            </FloatingCallContainer>
-        );
-    }
+    const showFloatingCallContainer = showJoinCallBanner || isInACall || showIncomingCalls;
 
     return (
         <FreezeScreen>
@@ -134,8 +131,6 @@ const Channel = ({
                         <ChannelPostList
                             channelId={channelId}
                             nativeID={channelId}
-                            currentCallBarVisible={isInACall}
-                            joinCallBannerVisible={showJoinCallBanner}
                         />
                     </View>
                     <PostDraft
@@ -150,7 +145,14 @@ const Channel = ({
                     />
                 </>
                 }
-                {callsComponents}
+                {showFloatingCallContainer &&
+                    <FloatingCallContainer
+                        channelId={channelId}
+                        showJoinCallBanner={showJoinCallBanner}
+                        showIncomingCalls={showIncomingCalls}
+                        isInACall={isInACall}
+                    />
+                }
             </SafeAreaView>
         </FreezeScreen>
     );

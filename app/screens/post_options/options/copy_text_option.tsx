@@ -3,6 +3,7 @@
 
 import Clipboard from '@react-native-clipboard/clipboard';
 import React, {useCallback} from 'react';
+import {Platform} from 'react-native';
 
 import {BaseOption} from '@components/common_post_options';
 import {SNACK_BAR_TYPE} from '@constants/snack_bar';
@@ -19,9 +20,11 @@ type Props = {
 }
 const CopyTextOption = ({bottomSheetId, postMessage, sourceScreen}: Props) => {
     const handleCopyText = useCallback(async () => {
-        await dismissBottomSheet(bottomSheetId);
         Clipboard.setString(postMessage);
-        showSnackBar({barType: SNACK_BAR_TYPE.MESSAGE_COPIED, sourceScreen});
+        await dismissBottomSheet(bottomSheetId);
+        if ((Platform.OS === 'android' && Platform.Version < 33) || Platform.OS === 'ios') {
+            showSnackBar({barType: SNACK_BAR_TYPE.MESSAGE_COPIED, sourceScreen});
+        }
     }, [postMessage]);
 
     return (

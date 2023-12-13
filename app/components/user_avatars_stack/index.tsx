@@ -3,7 +3,7 @@
 
 import React, {useCallback} from 'react';
 import {useIntl} from 'react-intl';
-import {StyleProp, Text, TouchableOpacity, View, ViewStyle} from 'react-native';
+import {type StyleProp, Text, type TextStyle, TouchableOpacity, View, type ViewStyle} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import FormattedText from '@components/formatted_text';
@@ -19,7 +19,6 @@ import {typography} from '@utils/typography';
 import UserAvatar from './user_avatar';
 import UsersList from './users_list';
 
-import type {BottomSheetProps} from '@gorhom/bottom-sheet';
 import type UserModel from '@typings/database/models/servers/user';
 
 const OVERFLOW_DISPLAY_LIMIT = 99;
@@ -31,6 +30,11 @@ type Props = {
     users: UserModel[];
     breakAt?: number;
     style?: StyleProp<ViewStyle>;
+    noBorder?: boolean;
+    avatarStyle?: StyleProp<ViewStyle>;
+    overflowContainerStyle?: StyleProp<ViewStyle>;
+    overflowItemStyle?: StyleProp<ViewStyle>;
+    overflowTextStyle?: StyleProp<TextStyle>;
 }
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
@@ -41,7 +45,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
         container: {
             flexDirection: 'row',
         },
-        firstAvatar: {
+        avatarCommon: {
             justifyContent: 'center',
             alignItems: 'center',
             width: size,
@@ -51,36 +55,20 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             backgroundColor: theme.centerChannelBg,
             borderRadius: size / 2,
         },
+        noBorder: {
+            borderWidth: 0,
+        },
         notFirstAvatars: {
-            justifyContent: 'center',
-            alignItems: 'center',
-            width: size,
-            height: size,
-            borderWidth: (size / 2) + 1,
-            borderColor: theme.centerChannelBg,
-            backgroundColor: theme.centerChannelBg,
-            borderRadius: size / 2,
             marginLeft: imgOverlap,
         },
         overflowContainer: {
-            justifyContent: 'center',
-            alignItems: 'center',
-            width: size,
-            height: size,
             borderRadius: size / 2,
             borderWidth: 1,
-            borderColor: theme.centerChannelBg,
-            backgroundColor: theme.centerChannelBg,
             marginLeft: imgOverlap,
         },
         overflowItem: {
-            justifyContent: 'center',
-            alignItems: 'center',
-            width: size,
-            height: size,
             borderRadius: size / 2,
             borderWidth: 1,
-            borderColor: theme.centerChannelBg,
             backgroundColor: changeOpacity(theme.centerChannelColor, 0.08),
         },
         overflowText: {
@@ -99,7 +87,18 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
     };
 });
 
-const UserAvatarsStack = ({breakAt = 3, channelId, location, style: baseContainerStyle, users}: Props) => {
+const UserAvatarsStack = ({
+    breakAt = 3,
+    channelId,
+    location,
+    style: baseContainerStyle,
+    users,
+    noBorder = false,
+    avatarStyle,
+    overflowContainerStyle,
+    overflowItemStyle,
+    overflowTextStyle,
+}: Props) => {
     const theme = useTheme();
     const intl = useIntl();
     const isTablet = useIsTablet();
@@ -125,7 +124,7 @@ const UserAvatarsStack = ({breakAt = 3, channelId, location, style: baseContaine
             </>
         );
 
-        const snapPoints: BottomSheetProps['snapPoints'] = [1, bottomSheetSnapPoint(Math.min(users.length, 5), USER_ROW_HEIGHT, bottom) + TITLE_HEIGHT];
+        const snapPoints: Array<string | number> = [1, bottomSheetSnapPoint(Math.min(users.length, 5), USER_ROW_HEIGHT, bottom) + TITLE_HEIGHT];
         if (users.length > 5) {
             snapPoints.push('80%');
         }
@@ -154,14 +153,14 @@ const UserAvatarsStack = ({breakAt = 3, channelId, location, style: baseContaine
                 {displayUsers.map((user, index) => (
                     <UserAvatar
                         key={user.id}
-                        style={index === 0 ? style.firstAvatar : style.notFirstAvatars}
+                        style={index === 0 ? [style.avatarCommon, noBorder && style.noBorder, avatarStyle] : [style.avatarCommon, style.notFirstAvatars, noBorder && style.noBorder, avatarStyle]}
                         user={user}
                     />
                 ))}
                 {Boolean(overflowUsersCount) && (
-                    <View style={style.overflowContainer}>
-                        <View style={style.overflowItem}>
-                            <Text style={style.overflowText} >
+                    <View style={[style.avatarCommon, style.overflowContainer, noBorder && style.noBorder, overflowContainerStyle]}>
+                        <View style={[style.avatarCommon, style.overflowItem, noBorder && style.noBorder, overflowItemStyle]}>
+                            <Text style={[style.overflowText, overflowTextStyle]}>
                                 {'+' + overflowUsersCount.toString()}
                             </Text>
                         </View>

@@ -1,9 +1,9 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Animated, DeviceEventEmitter, InteractionManager, Platform, StyleProp, Text, View, ViewStyle} from 'react-native';
+import {Animated, DeviceEventEmitter, InteractionManager, Platform, type StyleProp, Text, View, type ViewStyle} from 'react-native';
 import {RectButton} from 'react-native-gesture-handler';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
 import {Navigation} from 'react-native-navigation';
@@ -21,7 +21,7 @@ import {Events, Screens} from '@constants';
 import {PUSH_PROXY_STATUS_NOT_AVAILABLE, PUSH_PROXY_STATUS_VERIFIED} from '@constants/push_proxy';
 import {useTheme} from '@context/theme';
 import DatabaseManager from '@database/manager';
-import {subscribeServerUnreadAndMentions, UnreadObserverArgs} from '@database/subscription/unreads';
+import {subscribeServerUnreadAndMentions, type UnreadObserverArgs} from '@database/subscription/unreads';
 import {useIsTablet} from '@hooks/device';
 import WebsocketManager from '@managers/websocket_manager';
 import {getServerByIdentifier} from '@queries/app/servers';
@@ -159,6 +159,7 @@ const ServerItem = ({
     const viewRef = useRef<View>(null);
     const [showTutorial, setShowTutorial] = useState(false);
     const [itemBounds, setItemBounds] = useState<TutorialItemBounds>({startX: 0, startY: 0, endX: 0, endY: 0});
+    const tutorialShown = useRef(false);
 
     let displayName = server.displayName;
 
@@ -213,9 +214,24 @@ const ServerItem = ({
     };
 
     const onLayout = useCallback(() => {
-        swipeable.current?.close();
-        startTutorial();
-    }, []);
+        if (highlight && !tutorialWatched) {
+            if (isTablet) {
+                setShowTutorial(true);
+                return;
+            }
+            InteractionManager.runAfterInteractions(() => {
+                setShowTutorial(true);
+            });
+        }
+    }, [showTutorial]);
+
+    useLayoutEffect(() => {
+        if (showTutorial && !tutorialShown.current) {
+            swipeable.current?.close();
+            tutorialShown.current = true;
+            startTutorial();
+        }
+    });
 
     const containerStyle = useMemo(() => {
         const style: StyleProp<ViewStyle> = [styles.container];
@@ -240,14 +256,14 @@ const ServerItem = ({
         setSwitching(true);
         const result = await doPing(server.url, true);
         if (result.error) {
-            alertServerError(intl, result.error as ClientErrorProps);
+            alertServerError(intl, result.error);
             setSwitching(false);
             return;
         }
 
         const data = await fetchConfigAndLicense(server.url, true);
         if (data.error) {
-            alertServerError(intl, data.error as ClientErrorProps);
+            alertServerError(intl, data.error);
             setSwitching(false);
             return;
         }
@@ -347,18 +363,6 @@ const ServerItem = ({
         };
     }, [server.lastActiveAt, isActive]);
 
-    useEffect(() => {
-        if (highlight && !tutorialWatched) {
-            if (isTablet) {
-                setShowTutorial(true);
-                return;
-            }
-            InteractionManager.runAfterInteractions(() => {
-                setShowTutorial(true);
-            });
-        }
-    }, [highlight, tutorialWatched, isTablet]);
-
     const serverItem = `server_list.server_item.${server.displayName.replace(/ /g, '_').toLocaleLowerCase()}`;
     const serverItemTestId = isActive ? `${serverItem}.active` : `${serverItem}.inactive`;
 
@@ -390,6 +394,7 @@ const ServerItem = ({
                     style={containerStyle}
                     ref={viewRef}
                     testID={serverItemTestId}
+                    onLayout={onLayout}
                 >
                     <RectButton
                         onPress={onServerPressed}
@@ -474,13 +479,14 @@ const ServerItem = ({
                 itemBounds={itemBounds}
                 onDismiss={handleDismissTutorial}
                 onShow={handleShowTutorial}
-                onLayout={onLayout}
                 itemBorderRadius={8}
             >
+                {Boolean(itemBounds.endX) &&
                 <TutorialSwipeLeft
                     message={intl.formatMessage({id: 'server.tutorial.swipe', defaultMessage: 'Swipe left on a server to see more actions'})}
                     style={isTablet ? styles.tutorialTablet : styles.tutorial}
                 />
+                }
             </TutorialHighlight>
             }
         </>

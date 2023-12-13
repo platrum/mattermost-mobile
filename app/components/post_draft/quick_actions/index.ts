@@ -1,11 +1,11 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {withDatabase} from '@nozbe/watermelondb/DatabaseProvider';
-import withObservables from '@nozbe/with-observables';
+import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import React from 'react';
 
-import {observeCanUploadFiles, observeIsPostPriorityEnabled, observeMaxFileCount} from '@queries/servers/system';
+import {observeIsPostPriorityEnabled} from '@queries/servers/post';
+import {observeCanUploadFiles, observeMaxFileCount} from '@queries/servers/system';
 
 import QuickActions from './quick_actions';
 

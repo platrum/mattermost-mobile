@@ -1,10 +1,9 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {withDatabase} from '@nozbe/watermelondb/DatabaseProvider';
-import withObservables from '@nozbe/with-observables';
+import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import React, {useCallback, useEffect, useState} from 'react';
-import {IntlShape, useIntl} from 'react-intl';
+import {type IntlShape, useIntl} from 'react-intl';
 import {Text, View} from 'react-native';
 
 import CompassIcon from '@components/compass_icon';
@@ -143,7 +142,7 @@ function AutoCompleteSelector({
 
     const goToSelectorScreen = useCallback(preventDoubleTap(() => {
         const screen = Screens.INTEGRATION_SELECTOR;
-        goToScreen(screen, title, {dataSource, handleSelect, options, getDynamicOptions, selected, isMultiselect, teammateNameDisplay});
+        goToScreen(screen, title, {dataSource, handleSelect, options, getDynamicOptions, selected, isMultiselect});
     }), [dataSource, options, getDynamicOptions]);
 
     const handleSelect = useCallback((newSelection?: Selection) => {

@@ -1,17 +1,16 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {withDatabase} from '@nozbe/watermelondb/DatabaseProvider';
-import withObservables from '@nozbe/with-observables';
+import {withDatabase, withObservables} from '@nozbe/watermelondb/react';
 import React from 'react';
-import {injectIntl, IntlShape} from 'react-intl';
-import {BackHandler, NativeEventSubscription, SafeAreaView, View} from 'react-native';
+import {injectIntl, type IntlShape} from 'react-intl';
+import {BackHandler, type NativeEventSubscription, SafeAreaView, View} from 'react-native';
 import {KeyboardAwareScrollView} from 'react-native-keyboard-aware-scroll-view';
 import {
     Navigation,
-    NavigationButtonPressedEvent,
+    type NavigationButtonPressedEvent,
     NavigationComponent,
-    Options,
+    type Options,
 } from 'react-native-navigation';
 
 import {CustomStatusDurationEnum} from '@constants/custom_status';
@@ -29,7 +28,7 @@ import type {AvailableScreens} from '@typings/screens/navigation';
 
 interface Props {
     componentId: AvailableScreens;
-    currentUser: UserModel;
+    currentUser?: UserModel;
     handleClearAfterClick: (duration: CustomStatusDuration, expiresAt: string) => void;
     initialDuration: CustomStatusDuration;
     intl: IntlShape;
@@ -68,7 +67,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
 class ClearAfterModal extends NavigationComponent<Props, State> {
     private backListener: NativeEventSubscription | undefined;
     constructor(props: Props) {
-        super(props);
+        super({...props, componentName: 'ClearAfterModal'});
 
         const options: Options = {
             topBar: {

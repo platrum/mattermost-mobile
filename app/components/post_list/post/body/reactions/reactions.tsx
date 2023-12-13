@@ -3,9 +3,9 @@
 
 import React, {useCallback, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {Keyboard, TouchableOpacity, View} from 'react-native';
+import {Keyboard, TouchableOpacity} from 'react-native';
 
-import {addReaction, removeReaction} from '@actions/remote/reactions';
+import {addReaction, removeReaction, toggleReaction} from '@actions/remote/reactions';
 import CompassIcon from '@components/compass_icon';
 import {Screens} from '@constants';
 import {MAX_ALLOWED_REACTIONS} from '@constants/emoji';
@@ -49,13 +49,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             paddingVertical: 4,
             paddingHorizontal: 6,
             width: 36,
-        },
-        reactionsContainer: {
-            flex: 1,
-            flexDirection: 'row',
-            flexWrap: 'wrap',
-            alignContent: 'flex-start',
-            marginTop: 12,
         },
     };
 });
@@ -107,8 +100,8 @@ const Reactions = ({currentUserId, canAddReaction, canRemoveReaction, disabled, 
         return {reactionsByName, highlightedReactions};
     }, [sortedReactions, reactions]);
 
-    const handleAddReactionToPost = (emoji: string) => {
-        addReaction(serverUrl, postId, emoji);
+    const handleToggleReactionToPost = (emoji: string) => {
+        toggleReaction(serverUrl, postId, emoji);
     };
 
     const handleAddReaction = useCallback(preventDoubleTap(() => {
@@ -117,7 +110,7 @@ const Reactions = ({currentUserId, canAddReaction, canRemoveReaction, disabled, 
             screen: Screens.EMOJI_PICKER,
             theme,
             title: formatMessage({id: 'mobile.post_info.add_reaction', defaultMessage: 'Add Reaction'}),
-            props: {onEmojiPress: handleAddReactionToPost},
+            props: {onEmojiPress: handleToggleReactionToPost},
         });
     }), [formatMessage, theme]);
 
@@ -171,7 +164,7 @@ const Reactions = ({currentUserId, canAddReaction, canRemoveReaction, disabled, 
     }
 
     return (
-        <View style={styles.reactionsContainer}>
+        <>
             {
                 Array.from(sortedReactions).map((r) => {
                     const reaction = reactionsByName.get(r);
@@ -189,7 +182,7 @@ const Reactions = ({currentUserId, canAddReaction, canRemoveReaction, disabled, 
                 })
             }
             {addMoreReactions}
-        </View>
+        </>
     );
 };
 

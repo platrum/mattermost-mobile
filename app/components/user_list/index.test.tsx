@@ -34,6 +34,7 @@ describe('components/channel_list_row', () => {
             email: 'true',
             first_name: 'true',
             mention_keys: '',
+            highlight_keys: '',
             push: 'mention',
             push_status: 'away',
         },
@@ -61,6 +62,7 @@ describe('components/channel_list_row', () => {
             email: 'true',
             first_name: 'true',
             mention_keys: '',
+            highlight_keys: '',
             push: 'mention',
             push_status: 'away',
         },
@@ -77,7 +79,6 @@ describe('components/channel_list_row', () => {
                 profiles={[user]}
                 testID='UserListRow'
                 currentUserId={'1'}
-                teammateNameDisplay={'johndoe'}
                 handleSelectProfile={() => {
                     // noop
                 }}
@@ -101,7 +102,6 @@ describe('components/channel_list_row', () => {
                 profiles={[user]}
                 testID='UserListRow'
                 currentUserId={'1'}
-                teammateNameDisplay={'johndoe'}
                 handleSelectProfile={() => {
                     // noop
                 }}
@@ -125,7 +125,6 @@ describe('components/channel_list_row', () => {
                 profiles={[user, user2]}
                 testID='UserListRow'
                 currentUserId={'1'}
-                teammateNameDisplay={'johndoe'}
                 handleSelectProfile={() => {
                     // noop
                 }}
@@ -149,7 +148,6 @@ describe('components/channel_list_row', () => {
                 profiles={[user]}
                 testID='UserListRow'
                 currentUserId={'1'}
-                teammateNameDisplay={'johndoe'}
                 handleSelectProfile={() => {
                     // noop
                 }}
