@@ -4,7 +4,7 @@
 import {useIsFocused, useNavigation} from '@react-navigation/native';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
-import {FlatList, type LayoutChangeEvent, Platform, StyleSheet, type ViewStyle, KeyboardAvoidingView} from 'react-native';
+import {FlatList, type LayoutChangeEvent, Platform, StyleSheet, type ViewStyle, KeyboardAvoidingView, Keyboard} from 'react-native';
 import HWKeyboardEvent from 'react-native-hw-keyboard-event';
 import Animated, {useAnimatedStyle, useDerivedValue, withTiming, type AnimatedStyle} from 'react-native-reanimated';
 import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
@@ -85,9 +85,9 @@ const SearchScreen = ({teamId, teams}: Props) => {
     const insets = useSafeAreaInsets();
     const keyboardHeight = useKeyboardHeight();
 
-    const stateIndex = nav.getState().index;
+    const stateIndex = nav.getState()?.index;
     const serverUrl = useServerUrl();
-    const searchTerm = (nav.getState().routes[stateIndex].params as any)?.searchTerm;
+    const searchTerm: string = stateIndex === undefined ? '' : (nav.getState()?.routes[stateIndex]?.params as any)?.searchTerm || '';
 
     const clearRef = useRef<boolean>(false);
     const cancelRef = useRef<boolean>(false);
@@ -149,6 +149,7 @@ const SearchScreen = ({teamId, teams}: Props) => {
 
     const handleClearSearch = useCallback(() => {
         clearRef.current = true;
+        Keyboard.dismiss();
         resetToInitial();
     }, [resetToInitial]);
 
@@ -275,7 +276,7 @@ const SearchScreen = ({teamId, teams}: Props) => {
         return {
             opacity: withTiming(0, {duration: 150}),
             flex: 1,
-            transform: [{translateX: withTiming(stateIndex < searchScreenIndex ? 25 : -25, {duration: 150})}],
+            transform: [{translateX: withTiming((stateIndex || 0) < searchScreenIndex ? 25 : -25, {duration: 150})}],
         };
     }, [isFocused, stateIndex]);
 
