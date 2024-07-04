@@ -1,5 +1,7 @@
 # Mattermost Mobile v2
 
+commit: 59db1839ec66d2e73bf6d1d60185ff93a25c95c2
+
 - **Minimum Server versions:** Current ESR version (8.1.0+)
 - **Supported iOS versions:** 12.4+
 - **Supported Android versions:** 7.0+
