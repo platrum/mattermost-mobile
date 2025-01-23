@@ -24,6 +24,8 @@ import ManagedApp from '@init/managed_app';
 import {logDebug, logError} from '@utils/log';
 import {getCSRFFromCookie} from '@utils/security';
 
+global.Buffer = global.Buffer || require('buffer').Buffer;
+
 const CLIENT_CERTIFICATE_IMPORT_ERROR_CODES = [-103, -104, -105, -108];
 const CLIENT_CERTIFICATE_MISSING_ERROR_CODE = -200;
 const SERVER_CERTIFICATE_INVALID = -299;
@@ -102,7 +104,7 @@ class NetworkManager {
         const userAgent = `Mattermost Mobile/${nativeApplicationVersion}+${nativeBuildVersion} (${osName}; ${osVersion}; ${deviceName})`;
         const managedConfig = ManagedApp.enabled ? Emm.getManagedConfig<ManagedConfig>() : undefined;
         const headers: Record<string, string> = {
-            [ClientConstants.HEADER_USER_AGENT]: userAgent,
+            [ClientConstants.HEADER_USER_AGENT]: Buffer.from(userAgent).toString('base64'),
             ...this.DEFAULT_CONFIG.headers,
         };
 
