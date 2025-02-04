@@ -11,6 +11,10 @@ import type MyChannelModel from '@typings/database/models/servers/my_channel';
 
 const {SERVER: {CHANNEL, MY_CHANNEL}} = MM_TABLES;
 
+export function capitalizeFirstLetter(string: string) {
+    return string.charAt(0).toUpperCase() + string.slice(1);
+}
+
 export const retrieveChannels = (database: Database, myChannels: MyChannelModel[], orderedByLastViewedAt = false) => {
     const ids = myChannels.map((m) => m.id);
     if (ids.length) {
