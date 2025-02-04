@@ -14,6 +14,7 @@ export default tableSchema({
         {name: 'creator_id', type: 'string', isIndexed: true},
         {name: 'delete_at', type: 'number'},
         {name: 'display_name', type: 'string'},
+        {name: 'db_display_name', type: 'string'},
         {name: 'is_group_constrained', type: 'boolean'},
         {name: 'name', type: 'string', isIndexed: true},
         {name: 'shared', type: 'boolean'},

@@ -21,6 +21,7 @@ export default tableSchema({
         {name: 'locale', type: 'string'},
         {name: 'nickname', type: 'string'},
         {name: 'notify_props', type: 'string'},
+        {name: 'db_display_name', type: 'string'},
         {name: 'position', type: 'string'},
         {name: 'props', type: 'string'},
         {name: 'remote_id', type: 'string', isOptional: true},

@@ -78,6 +78,7 @@ fun insertChannel(db: WMDatabase, channel: JSONObject): Boolean {
     val updateAt = try { channel.getDouble("update_at") } catch (e: JSONException) { 0 }
     val creatorId = try { channel.getString("creator_id") } catch (e: JSONException) { "" }
     val displayName = try { channel.getString("display_name") } catch (e: JSONException) { "" }
+    val dbDisplayName = try { channel.getString("display_name").lowercase() } catch (e: JSONException) { "" }
     val name = try { channel.getString("name") } catch (e: JSONException) { "" }
     val teamId = try { channel.getString("team_id") } catch (e: JSONException) { "" }
     val type = try { channel.getString("type") } catch (e: JSONException) { "O" }
@@ -88,12 +89,12 @@ fun insertChannel(db: WMDatabase, channel: JSONObject): Boolean {
         db.execute(
                 """
                 INSERT INTO Channel 
-                (id, create_at, delete_at, update_at, creator_id, display_name, name, team_id, type, is_group_constrained, shared, _changed, _status)
+                (id, create_at, delete_at, update_at, creator_id, display_name, db_display_name, name, team_id, type, is_group_constrained, shared, _changed, _status)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', 'created')
                 """.trimIndent(),
                 arrayOf(
                         id, createAt, deleteAt, updateAt,
-                        creatorId, displayName, name, teamId, type,
+                        creatorId, displayName, dbDisplayName, name, teamId, type,
                         isGroupConstrained, shared
                 )
         )

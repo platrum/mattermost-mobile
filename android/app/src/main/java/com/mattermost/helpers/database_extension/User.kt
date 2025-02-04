@@ -61,7 +61,7 @@ fun handleUsers(db: WMDatabase, users: ReadableArray) {
             db.execute(
                     """
                     INSERT INTO User (id, auth_service, update_at, delete_at, email, first_name, is_bot, is_guest,
-                    last_name, last_picture_update, locale, nickname, position, roles, status, username, notify_props, 
+                    last_name, last_picture_update, locale, nickname, db_display_name, position, roles, status, username, notify_props, 
                     props, timezone, _changed, _status) 
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', 'created')
                     """.trimIndent(),
@@ -70,7 +70,7 @@ fun handleUsers(db: WMDatabase, users: ReadableArray) {
                             user.getString("auth_service"), user.getDouble("update_at"), user.getDouble("delete_at"),
                             user.getString("email"), user.getString("first_name"), isBot,
                             roles.contains("system_guest"), user.getString("last_name"), lastPictureUpdate,
-                            user.getString("locale"), user.getString("nickname"), user.getString("position"),
+                            user.getString("locale"), user.getString("nickname"), "${user.getString("first_name")?.lowercase()} ${user.getString("last_name")?.lowercase()}", user.getString("position"),
                             roles, "", user.getString("username"), "{}",
                             ReadableMapUtils.toJSONObject(user.getMap("props")
                                     ?: Arguments.createMap()).toString(),
