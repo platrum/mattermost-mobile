@@ -2,7 +2,12 @@
 // See LICENSE.txt for license information.
 
 import RNUtils from '@mattermost/rnutils/src';
-import {AppState, DeviceEventEmitter, Platform, type EmitterSubscription} from 'react-native';
+import {
+    AppState,
+    DeviceEventEmitter,
+    Platform,
+    type EmitterSubscription,
+} from 'react-native';
 import {
     Notification,
     NotificationAction,
@@ -12,15 +17,25 @@ import {
     Notifications,
     type NotificationTextInput,
     type Registered,
+    type RegistrationError,
 } from 'react-native-notifications';
 import {requestNotifications} from 'react-native-permissions';
 
 import {storeDeviceToken} from '@actions/app/global';
 import {markChannelAsViewed} from '@actions/local/channel';
 import {updateThread} from '@actions/local/thread';
-import {backgroundNotification, openNotification} from '@actions/remote/notifications';
+import {
+    backgroundNotification,
+    openNotification,
+} from '@actions/remote/notifications';
 import {isCallsStartedMessage} from '@calls/utils';
-import {Device, Events, Navigation, PushNotification, Screens} from '@constants';
+import {
+    Device,
+    Events,
+    Navigation,
+    PushNotification,
+    Screens,
+} from '@constants';
 import DatabaseManager from '@database/manager';
 import {DEFAULT_LOCALE, getLocalizedMessage, t} from '@i18n';
 import {getServerDisplayName} from '@queries/app/servers';
@@ -34,17 +49,31 @@ import {isMainActivity, isTablet} from '@utils/helpers';
 import {logDebug, logInfo} from '@utils/log';
 import {convertToNotificationData} from '@utils/notification';
 
-class PushNotifications {
+class PushNotificationsSingleton {
     configured = false;
     subscriptions?: EmitterSubscription[];
 
     init(register: boolean) {
         this.subscriptions?.forEach((v) => v.remove());
         this.subscriptions = [
-            Notifications.events().registerNotificationOpened(this.onNotificationOpened),
-            Notifications.events().registerRemoteNotificationsRegistered(this.onRemoteNotificationsRegistered),
-            Notifications.events().registerNotificationReceivedBackground(this.onNotificationReceivedBackground),
-            Notifications.events().registerNotificationReceivedForeground(this.onNotificationReceivedForeground),
+            Notifications.events().registerNotificationOpened(
+                this.onNotificationOpened,
+            ),
+            Notifications.events().registerRemoteNotificationsRegistered(
+                this.onRemoteNotificationsRegistered,
+            ),
+            Notifications.events().registerNotificationReceivedBackground(
+                this.onNotificationReceivedBackground,
+            ),
+            Notifications.events().registerNotificationReceivedForeground(
+                this.onNotificationReceivedForeground,
+            ),
+            Notifications.events().registerRemoteNotificationsRegistrationFailed(
+                this.NotificationsRegistrationFailed,
+            ),
+            Notifications.events().registerRemoteNotificationsRegistrationDenied(
+                this.onRemoteNotificationsRegistrationDenied,
+            ),
         ];
 
         if (register) {
@@ -53,7 +82,8 @@ class PushNotifications {
     }
 
     async registerIfNeeded() {
-        const isRegistered = await Notifications.isRegisteredForRemoteNotifications();
+        const isRegistered =
+            await Notifications.isRegisteredForRemoteNotifications();
         if (!isRegistered) {
             await requestNotifications(['alert', 'sound', 'badge']);
         }
@@ -61,24 +91,51 @@ class PushNotifications {
     }
 
     createReplyCategory = () => {
-        const replyTitle = getLocalizedMessage(DEFAULT_LOCALE, t('mobile.push_notification_reply.title'));
-        const replyButton = getLocalizedMessage(DEFAULT_LOCALE, t('mobile.push_notification_reply.button'));
-        const replyPlaceholder = getLocalizedMessage(DEFAULT_LOCALE, t('mobile.push_notification_reply.placeholder'));
-        const replyTextInput: NotificationTextInput = {buttonTitle: replyButton, placeholder: replyPlaceholder};
-        const replyAction = new NotificationAction(PushNotification.REPLY_ACTION, 'background', replyTitle, true, replyTextInput);
-        return new NotificationCategory(PushNotification.CATEGORY, [replyAction]);
+        const replyTitle = getLocalizedMessage(
+            DEFAULT_LOCALE,
+            t('mobile.push_notification_reply.title'),
+        );
+        const replyButton = getLocalizedMessage(
+            DEFAULT_LOCALE,
+            t('mobile.push_notification_reply.button'),
+        );
+        const replyPlaceholder = getLocalizedMessage(
+            DEFAULT_LOCALE,
+            t('mobile.push_notification_reply.placeholder'),
+        );
+        const replyTextInput: NotificationTextInput = {
+            buttonTitle: replyButton,
+            placeholder: replyPlaceholder,
+        };
+        const replyAction = new NotificationAction(
+            PushNotification.REPLY_ACTION,
+            'background',
+            replyTitle,
+            true,
+            replyTextInput,
+        );
+        return new NotificationCategory(PushNotification.CATEGORY, [
+            replyAction,
+        ]);
     };
 
-    getServerUrlFromNotification = async (notification: NotificationWithData) => {
+    getServerUrlFromNotification = async (
+        notification: NotificationWithData,
+    ) => {
         const {payload} = notification;
 
-        if (!payload?.channel_id && (!payload?.server_url || !payload.server_id)) {
+        if (
+            !payload?.channel_id &&
+            (!payload?.server_url || !payload.server_id)
+        ) {
             return payload?.server_url;
         }
 
         let serverUrl = payload.server_url;
         if (!serverUrl && payload.server_id) {
-            serverUrl = await DatabaseManager.getServerUrlFromIdentifier(payload.server_id);
+            serverUrl = await DatabaseManager.getServerUrlFromIdentifier(
+                payload.server_id,
+            );
         }
 
         return serverUrl;
@@ -89,11 +146,15 @@ class PushNotifications {
         const serverUrl = await this.getServerUrlFromNotification(notification);
 
         if (serverUrl && payload?.channel_id) {
-            const database = DatabaseManager.serverDatabases[serverUrl]?.database;
+            const database =
+                DatabaseManager.serverDatabases[serverUrl]?.database;
             if (database) {
                 const isCRTEnabled = await getIsCRTEnabled(database);
                 if (isCRTEnabled && payload.root_id) {
-                    const thread = await getThreadById(database, payload.root_id);
+                    const thread = await getThreadById(
+                        database,
+                        payload.root_id,
+                    );
                     if (thread?.isFollowing) {
                         const data: Partial<ThreadWithViewedAt> = {
                             unread_mentions: 0,
@@ -109,7 +170,10 @@ class PushNotifications {
         }
     };
 
-    handleInAppNotification = async (serverUrl: string, notification: NotificationWithData) => {
+    handleInAppNotification = async (
+        serverUrl: string,
+        notification: NotificationWithData,
+    ) => {
         const {payload} = notification;
 
         // Do not show overlay if this is a call-started message (the call_notification will alert the user)
@@ -131,13 +195,18 @@ class PushNotifications {
             const isThreadNotification = Boolean(payload?.root_id);
 
             const isSameChannelNotification = payload?.channel_id === channelId;
-            const isSameThreadNotification = isThreadNotification && payload?.root_id === EphemeralStore.getCurrentThreadId();
+            const isSameThreadNotification =
+                isThreadNotification &&
+                payload?.root_id === EphemeralStore.getCurrentThreadId();
 
-            let isInChannelScreen = NavigationStore.getVisibleScreen() === Screens.CHANNEL;
+            let isInChannelScreen =
+                NavigationStore.getVisibleScreen() === Screens.CHANNEL;
             if (isTabletDevice) {
-                isInChannelScreen = NavigationStore.getVisibleTab() === Screens.HOME;
+                isInChannelScreen =
+                    NavigationStore.getVisibleTab() === Screens.HOME;
             }
-            const isInThreadScreen = NavigationStore.getVisibleScreen() === Screens.THREAD;
+            const isInThreadScreen =
+                NavigationStore.getVisibleScreen() === Screens.THREAD;
 
             // Conditions:
             // 1. If not in channel screen or thread screen, show the notification
@@ -147,7 +216,10 @@ class PushNotifications {
             //      - Show notification of other channels
             //        or
             //      - Show notification if CRT is enabled and it's a thread notification (doesn't matter if it's the same channel)
-            const condition2 = isInChannelScreen && (!isSameChannelNotification || (isCRTEnabled && isThreadNotification));
+            const condition2 =
+                isInChannelScreen &&
+                (!isSameChannelNotification ||
+                    (isCRTEnabled && isThreadNotification));
 
             // 3. If is in thread screen,
             //      - Show the notification if it doesn't belong to the thread
@@ -231,9 +303,15 @@ class PushNotifications {
     };
 
     // This triggers when the app was in the background (iOS)
-    onNotificationReceivedBackground = async (incoming: Notification, completion: (response: NotificationBackgroundFetchResult) => void) => {
+    onNotificationReceivedBackground = async (
+        incoming: Notification,
+        completion: (response: NotificationBackgroundFetchResult) => void,
+    ) => {
         if (incoming.payload.verified === 'false') {
-            logDebug('not handling background notification because it was not verified, ackId=', incoming.payload.ackId);
+            logDebug(
+                'not handling background notification because it was not verified, ackId=',
+                incoming.payload.ackId,
+            );
             return;
         }
         const notification = convertToNotificationData(incoming, false);
@@ -244,18 +322,31 @@ class PushNotifications {
 
     // This triggers when the app was in the foreground (Android and iOS)
     // Also triggers when the app was in the background (Android)
-    onNotificationReceivedForeground = (incoming: Notification, completion: (response: NotificationCompletion) => void) => {
+    onNotificationReceivedForeground = (
+        incoming: Notification,
+        completion: (response: NotificationCompletion) => void,
+    ) => {
         if (incoming.payload.verified === 'false') {
-            logDebug('not handling foreground notification because it was not verified, ackId=', incoming.payload.ackId);
+            logDebug(
+                'not handling foreground notification because it was not verified, ackId=',
+                incoming.payload.ackId,
+            );
             return;
         }
         const notification = convertToNotificationData(incoming, false);
         if (AppState.currentState !== 'inactive') {
-            notification.foreground = AppState.currentState === 'active' && isMainActivity();
+            notification.foreground =
+                AppState.currentState === 'active' && isMainActivity();
 
             this.processNotification(notification);
         }
-        completion({alert: false, sound: true, badge: true});
+
+        // Always play a sound, except when this is a foreground notification about a call
+        const sound = !(
+            notification.foreground &&
+            isCallsStartedMessage(notification.payload)
+        );
+        completion({alert: false, sound, badge: true});
     };
 
     onRemoteNotificationsRegistered = async (event: Registered) => {
@@ -273,7 +364,9 @@ class PushNotifications {
                 prefix = Device.PUSH_NOTIFY_ANDROID_REACT_NATIVE;
             }
 
-            storeDeviceToken(`${prefix}-v2:${deviceToken}`);
+            const token = `${prefix}-v2:${deviceToken}`;
+            storeDeviceToken(token);
+            logDebug('Notification token registered', token);
 
             // Store the device token in the default database
             this.requestNotificationReplyPermissions();
@@ -281,7 +374,18 @@ class PushNotifications {
         return null;
     };
 
-    removeChannelNotifications = async (serverUrl: string, channelId: string) => {
+    onRemoteNotificationsRegistrationDenied = () => {
+        logDebug('Notification registration denied');
+    };
+
+    NotificationsRegistrationFailed = (event: RegistrationError) => {
+        logDebug('Notification registration failed', event);
+    };
+
+    removeChannelNotifications = async (
+        serverUrl: string,
+        channelId: string,
+    ) => {
         RNUtils.removeChannelNotifications(serverUrl, channelId);
     };
 
@@ -303,7 +407,9 @@ class PushNotifications {
     scheduleNotification = (notification: Notification) => {
         if (notification.fireDate) {
             if (Platform.OS === 'ios') {
-                notification.fireDate = new Date(notification.fireDate).toISOString();
+                notification.fireDate = new Date(
+                    notification.fireDate,
+                ).toISOString();
             }
 
             return Notifications.postLocalNotification(notification);
@@ -317,4 +423,5 @@ class PushNotifications {
     };
 }
 
-export default new PushNotifications();
+const PushNotifications = new PushNotificationsSingleton();
+export default PushNotifications;

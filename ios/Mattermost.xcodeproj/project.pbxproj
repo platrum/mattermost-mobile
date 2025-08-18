@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 54;
+	objectVersion = 60;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -16,7 +16,15 @@
 		27C667A529523F0A00E590D5 /* Sentry in Frameworks */ = {isa = PBXBuildFile; productRef = 27C667A429523F0A00E590D5 /* Sentry */; };
 		27C667A9295241B600E590D5 /* Sentry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27C667A8295241B600E590D5 /* Sentry.swift */; };
 		27C667AA295241B600E590D5 /* Sentry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27C667A8295241B600E590D5 /* Sentry.swift */; };
-		49AE370126D4455D00EF4E52 /* Gekidou in Frameworks */ = {isa = PBXBuildFile; productRef = 49AE370026D4455D00EF4E52 /* Gekidou */; };
+		2D97668D2E4CCCAD00F1A065 /* Gekidou in Frameworks */ = {isa = PBXBuildFile; productRef = 7F98836127FD46A9001C9BFC /* Gekidou */; };
+		2D97668E2E4CCCAD00F1A065 /* Gekidou in Frameworks */ = {isa = PBXBuildFile; productRef = 2DD30A802E4B6944000D0D6D /* Gekidou */; };
+		2D97668F2E4CCCAD00F1A065 /* Gekidou in Frameworks */ = {isa = PBXBuildFile; productRef = 49AE370026D4455D00EF4E52 /* Gekidou */; };
+		2D9766902E4CCCAD00F1A065 /* Gekidou in Frameworks */ = {isa = PBXBuildFile; productRef = 2DD30A822E4B696F000D0D6D /* Gekidou */; };
+		2D9766912E4CCCAD00F1A065 /* Gekidou in Frameworks */ = {isa = PBXBuildFile; productRef = 7F4288032865D340006B48E1 /* Gekidou */; };
+		2D9766922E4CCCAD00F1A065 /* Gekidou in Frameworks */ = {isa = PBXBuildFile; productRef = 2DD30A852E4B6996000D0D6D /* Gekidou */; };
+		2DD30A8A2E4B7DEF000D0D6D /* Gekidou in Frameworks */ = {isa = PBXBuildFile; productRef = 2DD30A892E4B7DEF000D0D6D /* Gekidou */; };
+		2DD30A8C2E4B7E36000D0D6D /* Gekidou in Frameworks */ = {isa = PBXBuildFile; productRef = 2DD30A8B2E4B7E36000D0D6D /* Gekidou */; };
+		2DD30A8E2E4B84A3000D0D6D /* Gekidou in Frameworks */ = {isa = PBXBuildFile; productRef = 2DD30A8D2E4B84A3000D0D6D /* Gekidou */; };
 		536CC6C323E79287002C478C /* RNNotificationEventHandler+HandleReplyAction.m in Sources */ = {isa = PBXBuildFile; fileRef = 536CC6C123E79287002C478C /* RNNotificationEventHandler+HandleReplyAction.m */; };
 		58495E36BF1A4EAB93609E57 /* Metropolis-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 54956DEFEBB74EF78C3A6AE5 /* Metropolis-SemiBold.ttf */; };
 		672D988829F1927F004228D6 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 672D984629F1927E004228D6 /* InfoPlist.strings */; };
@@ -71,7 +79,6 @@
 		7F1EBFCE286F2AE200824AF1 /* MultipleAttachmentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F1EBFCD286F2AE200824AF1 /* MultipleAttachmentView.swift */; };
 		7F1EBFD0286F2B2C00824AF1 /* RemoveAttachmentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F1EBFCF286F2B2C00824AF1 /* RemoveAttachmentView.swift */; };
 		7F292A711E8AB73400A450A3 /* SplashScreenResource in Resources */ = {isa = PBXBuildFile; fileRef = 7F292A701E8AB73400A450A3 /* SplashScreenResource */; };
-		7F4288042865D340006B48E1 /* Gekidou in Frameworks */ = {isa = PBXBuildFile; productRef = 7F4288032865D340006B48E1 /* Gekidou */; };
 		7F42880A286672F6006B48E1 /* ServerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F428809286672F6006B48E1 /* ServerService.swift */; };
 		7F42880C2866A9C0006B48E1 /* ChannelService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F42880B2866A9C0006B48E1 /* ChannelService.swift */; };
 		7F537B2928A517580086D6B3 /* NotificationHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F537B2828A517580086D6B3 /* NotificationHelper.swift */; };
@@ -133,7 +140,6 @@
 		7F93AAB62877547A0047B89F /* FileThumbnail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F93AAB52877547A0047B89F /* FileThumbnail.swift */; };
 		7F93AAB8287778090047B89F /* Publishers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F93AAB7287778090047B89F /* Publishers.swift */; };
 		7F93AABA28777A390047B89F /* Notification.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F93AAB928777A390047B89F /* Notification.swift */; };
-		7F98836227FD46A9001C9BFC /* Gekidou in Frameworks */ = {isa = PBXBuildFile; productRef = 7F98836127FD46A9001C9BFC /* Gekidou */; };
 		7FA9A98E28673EC200AB35A1 /* ShareViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FA9A98D28673EC200AB35A1 /* ShareViewModel.swift */; };
 		7FA9A9902868BD8800AB35A1 /* LocalFileManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FA9A98F2868BD8800AB35A1 /* LocalFileManager.swift */; };
 		7FB31F812710995B0032E2E5 /* Metropolis-Light.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7F25B626270F666D00F32373 /* Metropolis-Light.ttf */; };
@@ -385,8 +391,10 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				7F98836227FD46A9001C9BFC /* Gekidou in Frameworks */,
+				2D97668E2E4CCCAD00F1A065 /* Gekidou in Frameworks */,
+				2D97668D2E4CCCAD00F1A065 /* Gekidou in Frameworks */,
 				C84AE74C57DDE97D6C3D6924 /* libPods-Mattermost.a in Frameworks */,
+				2DD30A8E2E4B84A3000D0D6D /* Gekidou in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -394,8 +402,10 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				49AE370126D4455D00EF4E52 /* Gekidou in Frameworks */,
+				2D9766902E4CCCAD00F1A065 /* Gekidou in Frameworks */,
+				2D97668F2E4CCCAD00F1A065 /* Gekidou in Frameworks */,
 				27C667A329523ECA00E590D5 /* Sentry in Frameworks */,
+				2DD30A8A2E4B7DEF000D0D6D /* Gekidou in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -403,8 +413,10 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2D9766922E4CCCAD00F1A065 /* Gekidou in Frameworks */,
+				2D9766912E4CCCAD00F1A065 /* Gekidou in Frameworks */,
+				2DD30A8C2E4B7E36000D0D6D /* Gekidou in Frameworks */,
 				7FD4822C2864D73300A5B18B /* OpenGraph in Frameworks */,
-				7F4288042865D340006B48E1 /* Gekidou in Frameworks */,
 				27C667A529523F0A00E590D5 /* Sentry in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1056,6 +1068,8 @@
 			name = Mattermost;
 			packageProductDependencies = (
 				7F98836127FD46A9001C9BFC /* Gekidou */,
+				2DD30A802E4B6944000D0D6D /* Gekidou */,
+				2DD30A8D2E4B84A3000D0D6D /* Gekidou */,
 			);
 			productName = "Hello World";
 			productReference = 13B07F961A680F5B00A75B9A /* Mattermost.app */;
@@ -1077,6 +1091,8 @@
 			packageProductDependencies = (
 				49AE370026D4455D00EF4E52 /* Gekidou */,
 				27C667A229523ECA00E590D5 /* Sentry */,
+				2DD30A822E4B696F000D0D6D /* Gekidou */,
+				2DD30A892E4B7DEF000D0D6D /* Gekidou */,
 			);
 			productName = NotificationService;
 			productReference = 7F581D32221ED5C60099E66B /* NotificationService.appex */;
@@ -1099,6 +1115,8 @@
 				7FD4822B2864D73300A5B18B /* OpenGraph */,
 				7F4288032865D340006B48E1 /* Gekidou */,
 				27C667A429523F0A00E590D5 /* Sentry */,
+				2DD30A852E4B6996000D0D6D /* Gekidou */,
+				2DD30A8B2E4B7E36000D0D6D /* Gekidou */,
 			);
 			productName = MattermostShare;
 			productReference = 7FC5698628563FDB000B0905 /* MattermostShare.appex */;
@@ -1115,7 +1133,6 @@
 				ORGANIZATIONNAME = Facebook;
 				TargetAttributes = {
 					13B07F861A680F5B00A75B9A = {
-						DevelopmentTeam = UQ8HT4Q2XM;
 						LastSwiftMigration = 1010;
 						ProvisioningStyle = Automatic;
 						SystemCapabilities = {
@@ -1185,6 +1202,7 @@
 			packageReferences = (
 				7FD4822A2864D73300A5B18B /* XCRemoteSwiftPackageReference "OpenGraph" */,
 				27C667A129523ECA00E590D5 /* XCRemoteSwiftPackageReference "sentry-cocoa" */,
+				2DD30A842E4B6996000D0D6D /* XCLocalSwiftPackageReference "Gekidou" */,
 			);
 			productRefGroup = 83CBBA001A601CBA00E9B192 /* Products */;
 			projectDirPath = "";
@@ -2395,6 +2413,13 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		2DD30A842E4B6996000D0D6D /* XCLocalSwiftPackageReference "Gekidou" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Gekidou;
+		};
+/* End XCLocalSwiftPackageReference section */
+
 /* Begin XCRemoteSwiftPackageReference section */
 		27C667A129523ECA00E590D5 /* XCRemoteSwiftPackageReference "sentry-cocoa" */ = {
 			isa = XCRemoteSwiftPackageReference;
@@ -2424,6 +2449,30 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 27C667A129523ECA00E590D5 /* XCRemoteSwiftPackageReference "sentry-cocoa" */;
 			productName = Sentry;
+		};
+		2DD30A802E4B6944000D0D6D /* Gekidou */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Gekidou;
+		};
+		2DD30A822E4B696F000D0D6D /* Gekidou */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Gekidou;
+		};
+		2DD30A852E4B6996000D0D6D /* Gekidou */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Gekidou;
+		};
+		2DD30A892E4B7DEF000D0D6D /* Gekidou */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Gekidou;
+		};
+		2DD30A8B2E4B7E36000D0D6D /* Gekidou */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Gekidou;
+		};
+		2DD30A8D2E4B84A3000D0D6D /* Gekidou */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Gekidou;
 		};
 		49AE370026D4455D00EF4E52 /* Gekidou */ = {
 			isa = XCSwiftPackageProductDependency;
