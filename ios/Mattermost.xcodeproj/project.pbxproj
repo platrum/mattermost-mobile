@@ -15,13 +15,7 @@
 		266E7D53748BB8A1308B5CF2 /* libPods-MattermostShare.a in Frameworks */ = {isa = PBXBuildFile; fileRef = B1BD2D4C53C3682D8892612F /* libPods-MattermostShare.a */; };
 		27C667A9295241B600E590D5 /* Sentry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27C667A8295241B600E590D5 /* Sentry.swift */; };
 		27C667AA295241B600E590D5 /* Sentry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27C667A8295241B600E590D5 /* Sentry.swift */; };
-		2D97668D2E4CCCAD00F1A065 /* Gekidou in Frameworks */ = {isa = PBXBuildFile; productRef = 7F98836127FD46A9001C9BFC /* Gekidou */; };
-		2D97668E2E4CCCAD00F1A065 /* Gekidou in Frameworks */ = {isa = PBXBuildFile; productRef = 2DD30A802E4B6944000D0D6D /* Gekidou */; };
 		2D97668F2E4CCCAD00F1A065 /* Gekidou in Frameworks */ = {isa = PBXBuildFile; productRef = 49AE370026D4455D00EF4E52 /* Gekidou */; };
-		2D9766902E4CCCAD00F1A065 /* Gekidou in Frameworks */ = {isa = PBXBuildFile; productRef = 2DD30A822E4B696F000D0D6D /* Gekidou */; };
-		2DD30A8A2E4B7DEF000D0D6D /* Gekidou in Frameworks */ = {isa = PBXBuildFile; productRef = 2DD30A892E4B7DEF000D0D6D /* Gekidou */; };
-		2DD30A8C2E4B7E36000D0D6D /* Gekidou in Frameworks */ = {isa = PBXBuildFile; productRef = 2DD30A8B2E4B7E36000D0D6D /* Gekidou */; };
-		2DD30A8E2E4B84A3000D0D6D /* Gekidou in Frameworks */ = {isa = PBXBuildFile; productRef = 2DD30A8D2E4B84A3000D0D6D /* Gekidou */; };
 		536CC6C323E79287002C478C /* RNNotificationEventHandler+HandleReplyAction.m in Sources */ = {isa = PBXBuildFile; fileRef = 536CC6C123E79287002C478C /* RNNotificationEventHandler+HandleReplyAction.m */; };
 		58495E36BF1A4EAB93609E57 /* Metropolis-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 54956DEFEBB74EF78C3A6AE5 /* Metropolis-SemiBold.ttf */; };
 		672D988829F1927F004228D6 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 672D984629F1927E004228D6 /* InfoPlist.strings */; };
@@ -404,8 +398,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				2D97668E2E4CCCAD00F1A065 /* Gekidou in Frameworks */,
-				2D97668D2E4CCCAD00F1A065 /* Gekidou in Frameworks */,
 				C84AE74C57DDE97D6C3D6924 /* libPods-Mattermost.a in Frameworks */,
 				2DD30A8E2E4B84A3000D0D6D /* Gekidou in Frameworks */,
 			);
@@ -415,8 +407,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				2D9766902E4CCCAD00F1A065 /* Gekidou in Frameworks */,
-				2D97668F2E4CCCAD00F1A065 /* Gekidou in Frameworks */,
 				27C667A329523ECA00E590D5 /* Sentry in Frameworks */,
 				2DD30A8A2E4B7DEF000D0D6D /* Gekidou in Frameworks */,
 			);
@@ -2549,6 +2539,18 @@
 		2DD30A842E4B6996000D0D6D /* XCLocalSwiftPackageReference "Gekidou" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Gekidou;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		27C667A129523ECA00E590D5 /* XCRemoteSwiftPackageReference "sentry-cocoa" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/getsentry/sentry-cocoa.git";
+			requirement = {
+				kind = exactVersion;
+				version = 8.29.1;
+			};
+
 		};
 /* End XCLocalSwiftPackageReference section */
 
