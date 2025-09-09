@@ -20,8 +20,6 @@
 		2D97668E2E4CCCAD00F1A065 /* Gekidou in Frameworks */ = {isa = PBXBuildFile; productRef = 2DD30A802E4B6944000D0D6D /* Gekidou */; };
 		2D97668F2E4CCCAD00F1A065 /* Gekidou in Frameworks */ = {isa = PBXBuildFile; productRef = 49AE370026D4455D00EF4E52 /* Gekidou */; };
 		2D9766902E4CCCAD00F1A065 /* Gekidou in Frameworks */ = {isa = PBXBuildFile; productRef = 2DD30A822E4B696F000D0D6D /* Gekidou */; };
-		2D9766912E4CCCAD00F1A065 /* Gekidou in Frameworks */ = {isa = PBXBuildFile; productRef = 7F4288032865D340006B48E1 /* Gekidou */; };
-		2D9766922E4CCCAD00F1A065 /* Gekidou in Frameworks */ = {isa = PBXBuildFile; productRef = 2DD30A852E4B6996000D0D6D /* Gekidou */; };
 		2DD30A8A2E4B7DEF000D0D6D /* Gekidou in Frameworks */ = {isa = PBXBuildFile; productRef = 2DD30A892E4B7DEF000D0D6D /* Gekidou */; };
 		2DD30A8C2E4B7E36000D0D6D /* Gekidou in Frameworks */ = {isa = PBXBuildFile; productRef = 2DD30A8B2E4B7E36000D0D6D /* Gekidou */; };
 		2DD30A8E2E4B84A3000D0D6D /* Gekidou in Frameworks */ = {isa = PBXBuildFile; productRef = 2DD30A8D2E4B84A3000D0D6D /* Gekidou */; };
@@ -413,8 +411,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				2D9766922E4CCCAD00F1A065 /* Gekidou in Frameworks */,
-				2D9766912E4CCCAD00F1A065 /* Gekidou in Frameworks */,
 				2DD30A8C2E4B7E36000D0D6D /* Gekidou in Frameworks */,
 				7FD4822C2864D73300A5B18B /* OpenGraph in Frameworks */,
 				27C667A529523F0A00E590D5 /* Sentry in Frameworks */,
