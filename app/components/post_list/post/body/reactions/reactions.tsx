@@ -12,9 +12,9 @@ import {MAX_ALLOWED_REACTIONS} from '@constants/emoji';
 import {useServerUrl} from '@context/server';
 import {useIsTablet} from '@hooks/device';
 import useDidUpdate from '@hooks/did_update';
+import {usePreventDoubleTap} from '@hooks/utils';
 import {bottomSheetModalOptions, openAsBottomSheet, showModal, showModalOverCurrentContext} from '@screens/navigation';
 import {getEmojiFirstAlias} from '@utils/emoji/helpers';
-import {preventDoubleTap} from '@utils/tap';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
 import Reaction from './reaction';
@@ -98,13 +98,13 @@ const Reactions = ({currentUserId, canAddReaction, canRemoveReaction, disabled, 
         }, new Map<string, ReactionModel[]>());
 
         return {reactionsByName, highlightedReactions};
-    }, [sortedReactions, reactions]);
+    }, [reactions, currentUserId]);
 
-    const handleToggleReactionToPost = (emoji: string) => {
+    const handleToggleReactionToPost = useCallback((emoji: string) => {
         toggleReaction(serverUrl, postId, emoji);
-    };
+    }, [postId, serverUrl]);
 
-    const handleAddReaction = useCallback(preventDoubleTap(() => {
+    const handleAddReaction = usePreventDoubleTap(useCallback(() => {
         openAsBottomSheet({
             closeButtonId: 'close-add-reaction',
             screen: Screens.EMOJI_PICKER,
@@ -112,7 +112,7 @@ const Reactions = ({currentUserId, canAddReaction, canRemoveReaction, disabled, 
             title: formatMessage({id: 'mobile.post_info.add_reaction', defaultMessage: 'Add Reaction'}),
             props: {onEmojiPress: handleToggleReactionToPost},
         });
-    }), [formatMessage, theme]);
+    }, [formatMessage, handleToggleReactionToPost, theme]));
 
     const handleReactionPress = useCallback(async (emoji: string, remove: boolean) => {
         pressed.current = true;
@@ -123,7 +123,7 @@ const Reactions = ({currentUserId, canAddReaction, canRemoveReaction, disabled, 
         }
 
         pressed.current = false;
-    }, [canRemoveReaction, canAddReaction, disabled]);
+    }, [canRemoveReaction, disabled, canAddReaction, serverUrl, postId]);
 
     const showReactionList = useCallback((initialEmoji: string) => {
         const screen = Screens.REACTIONS;

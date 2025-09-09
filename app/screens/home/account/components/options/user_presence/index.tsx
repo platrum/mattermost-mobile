@@ -4,7 +4,6 @@
 import React, {useCallback} from 'react';
 import {useIntl} from 'react-intl';
 import {TouchableOpacity, View} from 'react-native';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import {setStatus} from '@actions/remote/user';
 import FormattedText from '@components/formatted_text';
@@ -15,10 +14,10 @@ import General from '@constants/general';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {useIsTablet} from '@hooks/device';
+import {usePreventDoubleTap} from '@hooks/utils';
 import {TITLE_HEIGHT} from '@screens/bottom_sheet/content';
 import {bottomSheet, dismissBottomSheet, dismissModal} from '@screens/navigation';
 import {bottomSheetSnapPoint} from '@utils/helpers';
-import {preventDoubleTap} from '@utils/tap';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 import {confirmOutOfOfficeDisabled} from '@utils/user';
@@ -57,14 +56,35 @@ type Props = {
 };
 const UserStatus = ({currentUser}: Props) => {
     const intl = useIntl();
-    const {bottom} = useSafeAreaInsets();
     const serverUrl = useServerUrl();
     const theme = useTheme();
     const styles = getStyleSheet(theme);
 
     const isTablet = useIsTablet();
 
-    const handleSetStatus = useCallback(preventDoubleTap(() => {
+    const updateStatus = useCallback((status: string) => {
+        const userStatus = {
+            user_id: currentUser.id,
+            status,
+            manual: true,
+            last_activity_at: Date.now(),
+        };
+
+        setStatus(serverUrl, userStatus);
+    }, [currentUser.id, serverUrl]);
+
+    const setUserStatus = useCallback((status: string) => {
+        if (currentUser.status === OUT_OF_OFFICE) {
+            dismissModal();
+            return confirmOutOfOfficeDisabled(intl, status, updateStatus);
+        }
+
+        updateStatus(status);
+        dismissBottomSheet();
+        return null;
+    }, [currentUser.status, intl, updateStatus]);
+
+    const handleSetStatus = usePreventDoubleTap(useCallback(() => {
         const renderContent = () => {
             return (
                 <>
@@ -125,7 +145,7 @@ const UserStatus = ({currentUser}: Props) => {
             );
         };
 
-        const snapPoint = bottomSheetSnapPoint(4, ITEM_HEIGHT, bottom);
+        const snapPoint = bottomSheetSnapPoint(4, ITEM_HEIGHT);
         bottomSheet({
             closeButtonId: 'close-set-user-status',
             renderContent,
@@ -133,29 +153,13 @@ const UserStatus = ({currentUser}: Props) => {
             title: intl.formatMessage({id: 'user_status.title', defaultMessage: 'Status'}),
             theme,
         });
-    }), [theme, bottom]);
-
-    const updateStatus = useCallback((status: string) => {
-        const userStatus = {
-            user_id: currentUser.id,
-            status,
-            manual: true,
-            last_activity_at: Date.now(),
-        };
-
-        setStatus(serverUrl, userStatus);
-    }, []);
-
-    const setUserStatus = useCallback((status: string) => {
-        if (currentUser.status === OUT_OF_OFFICE) {
-            dismissModal();
-            return confirmOutOfOfficeDisabled(intl, status, updateStatus);
-        }
-
-        updateStatus(status);
-        dismissBottomSheet();
-        return null;
-    }, []);
+    }, [
+        intl,
+        isTablet,
+        setUserStatus,
+        styles,
+        theme,
+    ]));
 
     return (
         <TouchableOpacity

@@ -9,8 +9,9 @@ import ClearButton from '@components/custom_status/clear_button';
 import CustomStatusText from '@components/custom_status/custom_status_text';
 import Emoji from '@components/emoji';
 import {CST} from '@constants/custom_status';
-import {preventDoubleTap} from '@utils/tap';
+import {usePreventDoubleTap} from '@hooks/utils';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
+import {typography} from '@utils/typography';
 
 type Props = {
     duration?: CustomStatusDuration;
@@ -43,7 +44,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
             paddingTop: 14,
             paddingBottom: 14,
             justifyContent: 'center',
-            width: '70%',
+            width: '93%',
             flex: 1,
         },
         divider: {
@@ -57,6 +58,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => {
         },
         customStatusText: {
             color: theme.centerChannelColor,
+            ...typography('Body', 200, 'Regular'),
         },
     };
 });
@@ -65,15 +67,15 @@ const CustomStatusSuggestion = ({duration, emoji, expires_at, handleClear, handl
     const style = getStyleSheet(theme);
     const intl = useIntl();
 
-    const handleClick = useCallback(preventDoubleTap(() => {
+    const handleClick = usePreventDoubleTap(useCallback(() => {
         handleSuggestionClick({emoji, text, duration});
-    }), []);
+    }, [duration, emoji, handleSuggestionClick, text]));
 
     const handleSuggestionClear = useCallback(() => {
         if (handleClear) {
             handleClear({emoji, text, duration, expires_at});
         }
-    }, []);
+    }, [duration, emoji, expires_at, handleClear, text]);
 
     const showCustomStatus = Boolean(duration && duration !== 'date_and_time' && isExpirySupported);
     const customStatusSuggestionTestId = `custom_status.custom_status_suggestion.${text}`;

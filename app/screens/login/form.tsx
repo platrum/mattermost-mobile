@@ -2,30 +2,31 @@
 // See LICENSE.txt for license information.
 
 import {useManagedConfig} from '@mattermost/react-native-emm';
-import {Button} from '@rneui/base';
-import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {useIntl} from 'react-intl';
+import {Button as RNEButton} from '@rneui/base';
+import React, {useCallback, useEffect, useMemo, useRef, useState, type RefObject} from 'react';
+import {defineMessages, useIntl} from 'react-intl';
 import {Keyboard, TextInput, TouchableOpacity, View} from 'react-native';
 
 import {login} from '@actions/remote/session';
+import Button from '@components/button';
 import CompassIcon from '@components/compass_icon';
 import FloatingTextInput from '@components/floating_text_input_label';
 import FormattedText from '@components/formatted_text';
-import Loading from '@components/loading';
 import {FORGOT_PASSWORD, MFA} from '@constants/screens';
-import {t} from '@i18n';
+import {useAvoidKeyboard} from '@hooks/device';
+import {usePreventDoubleTap} from '@hooks/utils';
 import {goToScreen, loginAnimationOptions, resetToHome} from '@screens/navigation';
-import {buttonBackgroundStyle, buttonTextStyle} from '@utils/buttonStyles';
-import {getFullErrorMessage, isErrorWithMessage, isServerError} from '@utils/errors';
-import {preventDoubleTap} from '@utils/tap';
+import {getFullErrorMessage, getServerError, isErrorWithMessage, isServerError} from '@utils/errors';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {tryOpenURL} from '@utils/url';
 
 import type {LaunchProps} from '@typings/launch';
+import type {KeyboardAwareScrollView} from 'react-native-keyboard-aware-scroll-view';
 
 interface LoginProps extends LaunchProps {
     config: Partial<ClientConfig>;
     license: Partial<ClientLicense>;
+    keyboardAwareRef: RefObject<KeyboardAwareScrollView>;
     serverDisplayName: string;
     theme: Theme;
 }
@@ -64,12 +65,7 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         fontSize: 14,
         fontFamily: 'OpenSans-SemiBold',
     },
-    loadingContainerStyle: {
-        marginRight: 10,
-        padding: 0,
-        top: -2,
-    },
-    loginButton: {
+    loginButtonContainer: {
         marginTop: 25,
     },
     endAdornment: {
@@ -77,7 +73,26 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
 }));
 
-const LoginForm = ({config, extra, serverDisplayName, launchError, launchType, license, serverUrl, theme}: LoginProps) => {
+const messages = defineMessages({
+    signIn: {
+        id: 'login.signIn',
+        defaultMessage: 'Log In',
+    },
+    signingIn: {
+        id: 'login.signingIn',
+        defaultMessage: 'Logging In',
+    },
+});
+
+const isMFAError = (loginError: unknown): boolean => {
+    const serverError = getServerError(loginError);
+    if (serverError) {
+        return MFA_EXPECTED_ERRORS.includes(serverError);
+    }
+    return false;
+};
+
+const LoginForm = ({config, extra, keyboardAwareRef, serverDisplayName, launchError, launchType, license, serverUrl, theme}: LoginProps) => {
     const styles = getStyleSheet(theme);
     const loginRef = useRef<TextInput>(null);
     const passwordRef = useRef<TextInput>(null);
@@ -93,54 +108,18 @@ const LoginForm = ({config, extra, serverDisplayName, launchError, launchType, l
     const usernameEnabled = config.EnableSignInWithUsername === 'true';
     const ldapEnabled = license.IsLicensed === 'true' && config.EnableLdap === 'true' && license.LDAP === 'true';
 
-    const preSignIn = preventDoubleTap(async () => {
-        setIsLoading(true);
+    useAvoidKeyboard(keyboardAwareRef);
 
-        Keyboard.dismiss();
-        signIn();
-    });
-
-    const signIn = async () => {
-        const result: LoginActionResponse = await login(serverUrl!, {serverDisplayName, loginId: loginId.toLowerCase(), password, config, license});
-        if (checkLoginResponse(result)) {
-            goToHome(result.error);
-        }
-    };
-
-    const goToHome = (loginError?: unknown) => {
+    const goToHome = useCallback((loginError?: unknown) => {
         const hasError = launchError || Boolean(loginError);
         resetToHome({extra, launchError: hasError, launchType, serverUrl});
-    };
+    }, [extra, launchError, launchType, serverUrl]);
 
-    const checkLoginResponse = (data: LoginActionResponse) => {
-        let errorId = '';
-        const loginError = data.error;
-        if (isServerError(loginError) && loginError.server_error_id) {
-            errorId = loginError.server_error_id;
-        }
-
-        if (data.failed && MFA_EXPECTED_ERRORS.includes(errorId)) {
-            goToMfa();
-            setIsLoading(false);
-            return false;
-        }
-
-        if (loginError && data.failed) {
-            setIsLoading(false);
-            setError(getLoginErrorMessage(loginError));
-            return false;
-        }
-
-        setIsLoading(false);
-
-        return true;
-    };
-
-    const goToMfa = () => {
+    const goToMfa = useCallback(() => {
         goToScreen(MFA, '', {goToHome, loginId, password, config, serverDisplayName, license, serverUrl, theme}, loginAnimationOptions());
-    };
+    }, [config, goToHome, license, loginId, password, serverDisplayName, serverUrl, theme]);
 
-    const getLoginErrorMessage = (loginError: unknown) => {
+    const getLoginErrorMessage = useCallback((loginError: unknown) => {
         if (isServerError(loginError)) {
             const errorId = loginError.server_error_id;
             if (errorId === 'api.user.login.invalid_credentials_email_username' || (!isErrorWithMessage(loginError) && typeof loginError !== 'string')) {
@@ -152,7 +131,40 @@ const LoginForm = ({config, extra, serverDisplayName, launchError, launchType, l
         }
 
         return getFullErrorMessage(loginError);
-    };
+    }, [intl]);
+
+    const checkLoginResponse = useCallback((data: LoginActionResponse) => {
+        const {failed, error: loginError} = data;
+        if (failed && isMFAError(loginError)) {
+            goToMfa();
+            setIsLoading(false);
+            return false;
+        }
+
+        if (failed && loginError) {
+            setIsLoading(false);
+            setError(getLoginErrorMessage(loginError));
+            return false;
+        }
+
+        setIsLoading(false);
+
+        return true;
+    }, [getLoginErrorMessage, goToMfa]);
+
+    const signIn = useCallback(async () => {
+        const result: LoginActionResponse = await login(serverUrl!, {serverDisplayName, loginId: loginId.toLowerCase(), password, config, license});
+        if (checkLoginResponse(result)) {
+            goToHome(result.error);
+        }
+    }, [checkLoginResponse, config, goToHome, license, loginId, password, serverDisplayName, serverUrl]);
+
+    const preSignIn = usePreventDoubleTap(useCallback(async () => {
+        setIsLoading(true);
+
+        Keyboard.dismiss();
+        signIn();
+    }, [signIn]));
 
     const createLoginPlaceholder = () => {
         const {formatMessage} = intl;
@@ -194,7 +206,7 @@ const LoginForm = ({config, extra, serverDisplayName, launchError, launchType, l
     const onLogin = useCallback(() => {
         Keyboard.dismiss();
         preSignIn();
-    }, [loginId, password, theme]);
+    }, [preSignIn]);
 
     const onLoginChange = useCallback((text: string) => {
         setLoginId(text);
@@ -222,7 +234,7 @@ const LoginForm = ({config, extra, serverDisplayName, launchError, launchType, l
         };
 
         goToScreen(FORGOT_PASSWORD, '', passProps, loginAnimationOptions());
-    }, [theme]);
+    }, [config.ForgotPasswordLink, serverUrl, theme]);
 
     const togglePasswordVisiblity = useCallback(() => {
         setIsPasswordVisible((prevState) => !prevState);
@@ -247,46 +259,21 @@ const LoginForm = ({config, extra, serverDisplayName, launchError, launchType, l
         setButtonDisabled(true);
     }, [loginId, password]);
 
-    const renderProceedButton = useMemo(() => {
-        const buttonType = buttonDisabled ? 'disabled' : 'default';
-        const styleButtonText = buttonTextStyle(theme, 'lg', 'primary', buttonType);
-        const styleButtonBackground = buttonBackgroundStyle(theme, 'lg', 'primary', buttonType);
-
-        let buttonID = t('login.signIn');
-        let buttonText = 'Log In';
-        let buttonIcon;
-
-        if (isLoading) {
-            buttonID = t('login.signingIn');
-            buttonText = 'Logging In';
-            buttonIcon = (
-                <Loading
-                    containerStyle={styles.loadingContainerStyle}
-                    color={theme.buttonColor}
-                />
-            );
-        }
-
-        const signinButtonTestId = buttonDisabled ? 'login_form.signin.button.disabled' : 'login_form.signin.button';
-
-        return (
+    const proceedButton = (
+        <View style={styles.loginButtonContainer}>
             <Button
                 disabled={buttonDisabled}
                 onPress={onLogin}
-                buttonStyle={[styles.loginButton, styleButtonBackground]}
-                testID={signinButtonTestId}
-            >
-                {buttonIcon}
-                <FormattedText
-                    id={buttonID}
-                    defaultMessage={buttonText}
-                    style={styleButtonText}
-                />
-            </Button>
-        );
-    }, [buttonDisabled, loginId, password, isLoading, theme]);
+                size='lg'
+                testID={buttonDisabled ? 'login_form.signin.button.disabled' : 'login_form.signin.button'}
+                text={intl.formatMessage(isLoading ? messages.signingIn : messages.signIn)}
+                showLoader={isLoading}
+                theme={theme}
+            />
+        </View>
+    );
 
-    const endAdornment = (
+    const endAdornment = useMemo(() => (
         <TouchableOpacity
             onPress={togglePasswordVisiblity}
             hitSlop={hitSlop}
@@ -298,7 +285,7 @@ const LoginForm = ({config, extra, serverDisplayName, launchError, launchType, l
                 color={changeOpacity(theme.centerChannelColor, 0.64)}
             />
         </TouchableOpacity>
-    );
+    ), [isPasswordVisible, styles.endAdornment, theme.centerChannelColor, togglePasswordVisiblity]);
 
     return (
         <View style={styles.container}>
@@ -307,6 +294,7 @@ const LoginForm = ({config, extra, serverDisplayName, launchError, launchType, l
                 autoCapitalize={'none'}
                 blurOnSubmit={false}
                 containerStyle={styles.inputBoxEmail}
+                autoComplete='email'
                 disableFullscreenUI={true}
                 enablesReturnKeyAutomatically={true}
                 error={error ? ' ' : ''}
@@ -327,10 +315,11 @@ const LoginForm = ({config, extra, serverDisplayName, launchError, launchType, l
                 autoCapitalize={'none'}
                 blurOnSubmit={false}
                 containerStyle={styles.inputBoxPassword}
+                autoComplete='current-password'
                 disableFullscreenUI={true}
                 enablesReturnKeyAutomatically={true}
                 error={error}
-                keyboardType='default'
+                keyboardType={isPasswordVisible ? 'visible-password' : 'default'}
                 label={intl.formatMessage({id: 'login.password', defaultMessage: 'Password'})}
                 onChangeText={onPasswordChange}
                 onSubmitEditing={onLogin}
@@ -345,7 +334,7 @@ const LoginForm = ({config, extra, serverDisplayName, launchError, launchType, l
             />
 
             {(emailEnabled || usernameEnabled) && config.PasswordEnableForgotLink !== 'false' && (
-                <Button
+                <RNEButton
                     onPress={onPressForgotPassword}
                     buttonStyle={[styles.forgotPasswordBtn, error ? styles.forgotPasswordError : undefined]}
                     testID='login_form.forgot_password.button'
@@ -355,9 +344,9 @@ const LoginForm = ({config, extra, serverDisplayName, launchError, launchType, l
                         defaultMessage='Forgot your password?'
                         style={styles.forgotPasswordTxt}
                     />
-                </Button>
+                </RNEButton>
             )}
-            {renderProceedButton}
+            {proceedButton}
         </View>
     );
 };

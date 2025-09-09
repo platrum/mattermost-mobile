@@ -9,6 +9,7 @@ env.d.ts
 *.apk
 *.aab
 *.ipa
+.tsbuildinfo.precommit
 
 */**/compass-icons.ttf
 
@@ -117,3 +118,7 @@ launch.json
 
 libraries/**/**/build
 libraries/**/**/.build
+
+# Android sounds
+android/app/src/main/res/raw/*
+.aider*

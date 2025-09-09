@@ -1,15 +1,15 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {Channel, General, Permissions} from '@constants';
-import {t, DEFAULT_LOCALE} from '@i18n';
-import {hasPermission} from '@utils/role';
+import {defineMessages, type IntlShape} from 'react-intl';
 
-import {generateId} from '../general';
-import {cleanUpUrlable} from '../url';
+import {Channel, General, Permissions} from '@constants';
+import {DEFAULT_LOCALE} from '@i18n';
+import {generateId} from '@utils/general';
+import {hasPermission} from '@utils/role';
+import {cleanUpUrlable} from '@utils/url';
 
 import type ChannelModel from '@typings/database/models/servers/channel';
-import type {IntlShape} from 'react-intl';
 
 export function getDirectChannelName(id: string, otherId: string): string {
     let handle;
@@ -45,7 +45,7 @@ export function selectDefaultChannelForTeam<T extends Channel|ChannelModel>(chan
     if (roles) {
         canIJoinPublicChannelsInTeam = hasPermission(roles, Permissions.JOIN_PUBLIC_CHANNELS);
     }
-    const defaultChannel = channels?.find((c) => c.name === General.DEFAULT_CHANNEL);
+    const defaultChannel = channels?.find(isDefaultChannel);
     const membershipIds = new Set(memberships.map((m) => m.channel_id));
     const iAmMemberOfTheTeamDefaultChannel = Boolean(defaultChannel && membershipIds.has(defaultChannel.id));
     const myFirstTeamChannel = channels?.filter((c) =>
@@ -83,20 +83,20 @@ export function sortChannelsModelByDisplayName(locale: string, a: ChannelModel, 
     return a.name.toLowerCase().localeCompare(b.name.toLowerCase(), locale, {numeric: true});
 }
 
-const displayNameValidationMessages = {
+const displayNameValidationMessages = defineMessages({
     display_name_required: {
-        id: t('mobile.rename_channel.display_name_required'),
+        id: 'mobile.rename_channel.display_name_required',
         defaultMessage: 'Channel name is required',
     },
     display_name_maxLength: {
-        id: t('mobile.rename_channel.display_name_maxLength'),
+        id: 'mobile.rename_channel.display_name_maxLength',
         defaultMessage: 'Channel name must be less than {maxLength, number} characters',
     },
     display_name_minLength: {
-        id: t('mobile.rename_channel.display_name_minLength'),
+        id: 'mobile.rename_channel.display_name_minLength',
         defaultMessage: 'Channel name must be {minLength, number} or more characters',
     },
-};
+});
 
 export const validateDisplayName = (intl: IntlShape, displayName: string): {error: string} => {
     let errorMessage;
@@ -117,6 +117,7 @@ export const validateDisplayName = (intl: IntlShape, displayName: string): {erro
 
         default:
             errorMessage = '';
+            break;
     }
     return {error: errorMessage};
 };
@@ -156,4 +157,8 @@ export function filterChannelsMatchingTerm(channels: Channel[], term: string): C
         return name.startsWith(lowercasedTerm) ||
             displayName.startsWith(lowercasedTerm);
     });
+}
+
+export function isDefaultChannel(channel: Channel | ChannelModel | undefined): boolean {
+    return channel?.name === General.DEFAULT_CHANNEL;
 }

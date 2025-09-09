@@ -4,30 +4,37 @@
 import {type ClientHeaders, getOrCreateWebSocketClient, type WebSocketClientInterface, WebSocketReadyState} from '@mattermost/react-native-network-client';
 import {Platform} from 'react-native';
 
+import * as ClientConstants from '@client/rest/constants';
 import {WebsocketEvents} from '@constants';
 import DatabaseManager from '@database/manager';
 import {getConfigValue} from '@queries/servers/system';
 import {hasReliableWebsocket} from '@utils/config';
 import {toMilliseconds} from '@utils/datetime';
-import {logError, logInfo, logWarning} from '@utils/log';
+import {logDebug, logError, logInfo, logWarning} from '@utils/log';
 
 const MAX_WEBSOCKET_FAILS = 7;
 const WEBSOCKET_TIMEOUT = toMilliseconds({seconds: 30});
 const MIN_WEBSOCKET_RETRY_TIME = toMilliseconds({seconds: 3});
 const MAX_WEBSOCKET_RETRY_TIME = toMilliseconds({minutes: 5});
+const PING_INTERVAL = toMilliseconds({seconds: 30});
 const DEFAULT_OPTIONS = {
     forceConnection: true,
 };
+const TLS_HANDSHARE_ERROR = 1015;
 
 export default class WebSocketClient {
     private conn?: WebSocketClientInterface;
     private connectionTimeout: NodeJS.Timeout | undefined;
     private connectionId = '';
     private token: string;
+    private preauthSecret?: string;
     private stop = false;
     private url = '';
     private serverUrl: string;
     private connectFailCount = 0;
+
+    private pingInterval: NodeJS.Timeout | undefined;
+    private waitingForPong: boolean = false;
 
     // The first time we connect to a server (on init or login)
     // we do the sync out of the websocket lifecycle.
@@ -53,9 +60,10 @@ export default class WebSocketClient {
     private closeCallback?: (connectFailCount: number) => void;
     private connectingCallback?: () => void;
 
-    constructor(serverUrl: string, token: string) {
+    constructor(serverUrl: string, token: string, preauthSecret?: string) {
         this.token = token;
         this.serverUrl = serverUrl;
+        this.preauthSecret = preauthSecret;
     }
 
     public async initialize(opts = {}, shouldSkipSync = false) {
@@ -129,6 +137,13 @@ export default class WebSocketClient {
                 // iOS is using he underlying cookieJar
                 headers.Authorization = `Bearer ${this.token}`;
             }
+
+            // Add shared password header if available
+            if (this.preauthSecret) {
+                headers[ClientConstants.HEADER_X_MATTERMOST_PREAUTH_SECRET] = this.preauthSecret;
+                logDebug('WebSocket: Added shared password header for', this.serverUrl);
+            }
+
             const {client} = await getOrCreateWebSocketClient(this.url, {headers, timeoutInterval: WEBSOCKET_TIMEOUT});
 
             // Check again if the client is the same, to avoid race conditions
@@ -137,6 +152,7 @@ export default class WebSocketClient {
                 // the websocket will call onClose then onError then initialize again with readyState CLOSED, we need to open it again
                 if (this.conn.readyState === WebSocketReadyState.CLOSED) {
                     clearTimeout(this.connectionTimeout);
+                    clearInterval(this.pingInterval);
                     this.conn.open();
                 }
                 return;
@@ -148,6 +164,7 @@ export default class WebSocketClient {
 
         this.conn!.onOpen(() => {
             clearTimeout(this.connectionTimeout);
+            clearInterval(this.pingInterval);
 
             // No need to reset sequence number here.
             if (!reliableWebSockets) {
@@ -176,11 +193,35 @@ export default class WebSocketClient {
                 }
             }
 
+            // Send a ping immediately to test the socket
+            this.waitingForPong = true;
+            this.ping();
+
+            // And every 30 seconds after, checking to ensure
+            // we're getting responses from the server
+            this.pingInterval = setInterval(
+                () => {
+                    if (!this.waitingForPong) {
+                        this.waitingForPong = true;
+                        this.ping();
+                        return;
+                    }
+
+                    // We are not calling this.close() because we need to auto-restart.
+                    this.responseSequence = 1;
+                    clearInterval(this.pingInterval);
+                    this.conn?.close();
+                },
+                PING_INTERVAL,
+            );
+
             this.connectFailCount = 0;
         });
 
-        this.conn!.onClose(() => {
+        this.conn!.onClose((ev) => {
             clearTimeout(this.connectionTimeout);
+            clearInterval(this.pingInterval);
+
             this.conn = undefined;
             this.responseSequence = 1;
 
@@ -189,6 +230,12 @@ export default class WebSocketClient {
             // we don't want to skip the sync. If we keep the same connection and
             // reliable websockets are enabled this won't trigger a new sync.
             this.shouldSkipSync = false;
+
+            if (ev.message && typeof ev.message === 'object' && 'code' in ev.message && ev.message.code === TLS_HANDSHARE_ERROR) {
+                logDebug('websocket did not connect', this.url, ev.message.reason);
+                this.closeCallback?.(this.connectFailCount);
+                return;
+            }
 
             if (this.connectFailCount === 0) {
                 logInfo('websocket closed', this.url);
@@ -245,6 +292,9 @@ export default class WebSocketClient {
             if (msg.seq_reply) {
                 if (msg.error) {
                     logWarning(msg);
+                }
+                if (msg.data?.text === WebsocketEvents.PONG) {
+                    this.waitingForPong = false;
                 }
             } else if (this.eventCallback) {
                 if (reliableWebSockets) {
@@ -332,13 +382,26 @@ export default class WebSocketClient {
         this.connectFailCount = 0;
         this.responseSequence = 1;
         clearTimeout(this.connectionTimeout);
+        clearInterval(this.pingInterval);
         this.conn?.close();
     }
 
     public invalidate() {
         clearTimeout(this.connectionTimeout);
+        clearInterval(this.pingInterval);
         this.conn?.invalidate();
         this.conn = undefined;
+    }
+
+    private ping() {
+        const msg = {
+            action: WebsocketEvents.PING,
+            seq: this.responseSequence++,
+        };
+
+        if (this.conn && this.conn.readyState === WebSocketReadyState.OPEN) {
+            this.conn.send(JSON.stringify(msg));
+        }
     }
 
     private sendMessage(action: string, data: any) {
@@ -350,9 +413,6 @@ export default class WebSocketClient {
 
         if (this.conn && this.conn.readyState === WebSocketReadyState.OPEN) {
             this.conn.send(JSON.stringify(msg));
-        } else if (!this.conn || this.conn.readyState === WebSocketReadyState.CLOSED) {
-            this.conn = undefined;
-            this.initialize(this.token);
         }
     }
 
@@ -365,5 +425,13 @@ export default class WebSocketClient {
 
     public isConnected(): boolean {
         return this.conn?.readyState === WebSocketReadyState.OPEN;
+    }
+
+    public getConnectionId(): string {
+        return this.connectionId;
+    }
+
+    public getServerSequence(): number {
+        return this.serverSequence;
     }
 }

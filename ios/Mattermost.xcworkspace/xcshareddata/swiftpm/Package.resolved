@@ -56,15 +56,6 @@
         }
       },
       {
-        "package": "Sentry",
-        "repositoryURL": "https://github.com/getsentry/sentry-cocoa.git",
-        "state": {
-          "branch": null,
-          "revision": "08862789e1cbba7a9561bed69832a9306f339cd3",
-          "version": "8.29.1"
-        }
-      },
-      {
         "package": "SQLite.swift",
         "repositoryURL": "https://github.com/stephencelis/SQLite.swift.git",
         "state": {
@@ -89,6 +80,15 @@
           "branch": null,
           "revision": "ce592ae52f982c847a4efc0dd881cc9eb32d29f2",
           "version": "1.6.4"
+        }
+      },
+      {
+        "package": "swift-toolchain-sqlite",
+        "repositoryURL": "https://github.com/swiftlang/swift-toolchain-sqlite",
+        "state": {
+          "branch": null,
+          "revision": "b626d3002773b1a1304166643e7f118f724b2132",
+          "version": "1.0.4"
         }
       },
       {

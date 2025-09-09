@@ -1,11 +1,11 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {LinearGradient} from 'expo-linear-gradient';
+import {LinearGradient, type LinearGradientProps} from 'expo-linear-gradient';
 import React, {useCallback, useMemo, useState} from 'react';
 import {StyleSheet, useWindowDimensions, View} from 'react-native';
 
-import {buildFilePreviewUrl, buildFileThumbnailUrl} from '@actions/remote/file';
+import {buildFilePreviewUrl, buildFileThumbnailUrl, buildFileUrl} from '@actions/remote/file';
 import CompassIcon from '@components/compass_icon';
 import ProgressiveImage from '@components/progressive_image';
 import {useServerUrl} from '@context/server';
@@ -30,9 +30,9 @@ type ImageFileProps = {
 
 const SMALL_IMAGE_MAX_HEIGHT = 48;
 const SMALL_IMAGE_MAX_WIDTH = 48;
-const GRADIENT_COLORS = ['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, .32)'];
+const GRADIENT_COLORS: LinearGradientProps['colors'] = ['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, .32)'];
 const GRADIENT_END = {x: 1, y: 1};
-const GRADIENT_LOCATIONS = [0.5, 1];
+const GRADIENT_LOCATIONS: LinearGradientProps['locations'] = [0.5, 1];
 const GRADIENT_START = {x: 0.5, y: 0.5};
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
@@ -90,7 +90,7 @@ const ImageFile = ({
         setFailed(true);
     }, []);
 
-    const imageProps = () => {
+    const imageProps = useMemo(() => {
         const props: ProgressiveImageProps = {};
 
         if (file.localPath) {
@@ -99,14 +99,19 @@ const ImageFile = ({
         } else if (file.id) {
             if (file.mini_preview && file.mime_type) {
                 props.thumbnailUri = `data:${file.mime_type};base64,${file.mini_preview}`;
-            } else {
+            } else if (file.has_preview_image) {
                 props.thumbnailUri = buildFileThumbnailUrl(serverUrl, file.id);
             }
-            props.imageUri = buildFilePreviewUrl(serverUrl, file.id);
+            if (file.has_preview_image) {
+                props.imageUri = buildFilePreviewUrl(serverUrl, file.id);
+            } else {
+                props.imageUri = buildFileUrl(serverUrl, file.id, file.update_at);
+            }
             props.inViewPort = inViewPort;
         }
+
         return props;
-    };
+    }, [file, inViewPort, serverUrl]);
 
     let imageDimensions = getImageDimensions();
     if (isSingleImage && (!imageDimensions || (imageDimensions?.height === 0 && imageDimensions?.width === 0))) {
@@ -121,7 +126,7 @@ const ImageFile = ({
             tintDefaultSource={!file.localPath && !failed}
             onError={handleError}
             contentFit={contentFit}
-            {...imageProps()}
+            {...imageProps}
         />
     );
 

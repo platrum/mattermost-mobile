@@ -1,12 +1,11 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {BottomSheetFlatList} from '@gorhom/bottom-sheet';
+import {BottomSheetFlashList} from '@gorhom/bottom-sheet';
+import {FlashList, type ListRenderItemInfo} from '@shopify/flash-list';
 import React, {useCallback, useMemo} from 'react';
 import {useIntl} from 'react-intl';
-import {type ListRenderItemInfo, Text, TouchableOpacity, useWindowDimensions, View} from 'react-native';
-import {FlatList} from 'react-native-gesture-handler';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {Text, TouchableOpacity, useWindowDimensions, View} from 'react-native';
 
 import {hostMuteOthers} from '@calls/actions/calls';
 import {useHostControlsAvailable, useHostMenus} from '@calls/hooks';
@@ -79,14 +78,13 @@ export const ParticipantsList = ({
     const theme = useTheme();
     const {onPress} = useHostMenus();
     const hostControlsAvailable = useHostControlsAvailable();
-    const {bottom} = useSafeAreaInsets();
     const {height} = useWindowDimensions();
     const isTablet = useIsTablet();
-    const List = useMemo(() => (isTablet ? FlatList : BottomSheetFlatList), [isTablet]);
+    const List = useMemo(() => (isTablet ? FlashList : BottomSheetFlashList), [isTablet]);
     const styles = getStyleSheet(theme);
 
     const sessions = sortSessions(intl.locale, teammateNameDisplay, sessionsDict);
-    const snapPoint1 = bottomSheetSnapPoint(Math.min(sessions.length, MIN_ROWS), ROW_HEIGHT, bottom) + HEADER_HEIGHT;
+    const snapPoint1 = bottomSheetSnapPoint(Math.min(sessions.length, MIN_ROWS), ROW_HEIGHT) + HEADER_HEIGHT;
     const snapPoint2 = height * 0.8;
     const snapPoints = [1, Math.min(snapPoint1, snapPoint2)];
     if (sessions.length > MIN_ROWS && snapPoint1 < snapPoint2) {
@@ -139,9 +137,8 @@ export const ParticipantsList = ({
                 <List
                     data={sessions}
                     renderItem={renderItem}
-                    overScrollMode={'auto'}
+                    estimatedItemSize={ROW_HEIGHT}
                 />
-                <View style={{height: bottom}}/>
             </>
         );
     };

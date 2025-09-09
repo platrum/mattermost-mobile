@@ -17,6 +17,7 @@ export type HeaderRightButton = {
     buttonType?: 'native' | 'opacity' | 'highlight';
     color?: string;
     iconName: string;
+    count?: number;
     onPress: () => void;
     rippleRadius?: number;
     testID?: string;
@@ -32,7 +33,6 @@ type Props = {
     onTitlePress?: () => void;
     rightButtons?: HeaderRightButton[];
     scrollValue?: Animated.SharedValue<number>;
-    lockValue?: Animated.SharedValue<number | null>;
     showBackButton?: boolean;
     subtitle?: string;
     subtitleCompanion?: React.ReactElement;
@@ -73,10 +73,8 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         justifyContent: 'center',
         flex: 3,
         height: '100%',
-        paddingHorizontal: 8,
         ...Platform.select({
             ios: {
-                paddingHorizontal: 60,
                 flex: undefined,
                 width: '100%',
                 position: 'absolute',
@@ -116,8 +114,13 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
             },
         }),
     },
+    rightButtonContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
     rightIcon: {
-        marginLeft: 10,
+        padding: 5,
     },
     title: {
         color: theme.sidebarHeaderTextColor,
@@ -135,7 +138,6 @@ const Header = ({
     onTitlePress,
     rightButtons,
     scrollValue,
-    lockValue,
     showBackButton = true,
     subtitle,
     subtitleCompanion,
@@ -155,7 +157,7 @@ const Header = ({
         }
 
         const barHeight = heightOffset - ViewConstants.LARGE_HEADER_TITLE_HEIGHT;
-        const val = (scrollValue?.value ?? 0);
+        const val = (scrollValue?.value || 0);
         const showDuration = 200;
         const hideDuration = 50;
         const duration = val >= barHeight ? showDuration : hideDuration;
@@ -168,14 +170,20 @@ const Header = ({
     const containerAnimatedStyle = useAnimatedStyle(() => ({
         height: defaultHeight,
         paddingTop: insets.top,
-    }), [defaultHeight, lockValue]);
+    }), [defaultHeight]);
 
     const containerStyle = useMemo(() => (
         [styles.container, containerAnimatedStyle]), [styles, containerAnimatedStyle]);
 
-    const additionalTitleStyle = useMemo(() => ({
-        marginLeft: Platform.select({android: showBackButton && !leftComponent ? 20 : 0}),
-    }), [leftComponent, showBackButton, theme]);
+    const additionalTitleStyle = useMemo(() => {
+        return {
+            marginLeft: Platform.select({android: showBackButton && !leftComponent ? 20 : 0}),
+            paddingHorizontal: Platform.select({
+                ios: rightButtons?.length === 2 ? 90 : 60,
+                android: 8,
+            }),
+        };
+    }, [leftComponent, showBackButton, rightButtons]);
 
     return (
         <Animated.View style={containerStyle}>
@@ -235,7 +243,7 @@ const Header = ({
             </Animated.View>
             <Animated.View style={styles.rightContainer}>
                 {Boolean(rightButtons?.length) &&
-                rightButtons?.map((r, i) => (
+                rightButtons?.map((r) => (
                     <TouchableWithFeedback
                         key={r.iconName}
                         borderlessRipple={r.borderless === undefined ? true : r.borderless}
@@ -243,14 +251,19 @@ const Header = ({
                         onPress={r.onPress}
                         rippleRadius={r.rippleRadius || 20}
                         type={r.buttonType || Platform.select({android: 'native', default: 'opacity'})}
-                        style={i > 0 && styles.rightIcon}
+                        style={styles.rightIcon}
                         testID={r.testID}
                     >
-                        <CompassIcon
-                            size={24}
-                            name={r.iconName}
-                            color={r.color || theme.sidebarHeaderTextColor}
-                        />
+                        <View style={styles.rightButtonContainer}>
+                            <CompassIcon
+                                size={24}
+                                name={r.iconName}
+                                color={r.color || theme.sidebarHeaderTextColor}
+                            />
+                            {Boolean(r.count) && (
+                                <Text style={styles.title}>{r.count}</Text>
+                            )}
+                        </View>
                     </TouchableWithFeedback>
                 ))
                 }

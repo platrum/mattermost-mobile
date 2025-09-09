@@ -1,12 +1,15 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import type {
-    CallJobState,
-    CallsConfig,
-    EmojiData,
-    UserReactionData,
+import {
+    TranscribeAPI,
+    type CallJobState,
+    type CallsConfig,
+    type EmojiData,
+    type UserReactionData,
+    type CallsVersionInfo,
 } from '@mattermost/calls/lib/types';
+
 import type UserModel from '@typings/database/models/servers/user';
 
 export type GlobalCallsState = {
@@ -49,10 +52,13 @@ export type IncomingCallNotification = {
 
 export type IncomingCalls = {
     incomingCalls: IncomingCallNotification[];
+    currentRingingCallId?: string;
+    callIdHasRung: Dictionary<boolean>;
 }
 
 export const DefaultIncomingCalls: IncomingCalls = {
     incomingCalls: [],
+    callIdHasRung: {},
 };
 
 export type Call = {
@@ -137,7 +143,7 @@ export type CallsConnection = {
     disconnect: (err?: Error) => void;
     mute: () => void;
     unmute: () => void;
-    waitForPeerConnection: () => Promise<void>;
+    waitForPeerConnection: () => Promise<string>;
     raiseHand: () => void;
     unraiseHand: () => void;
     initializeVoiceTrack: () => void;
@@ -146,8 +152,9 @@ export type CallsConnection = {
 
 export type CallsConfigState = CallsConfig & {
     AllowEnableCalls: boolean;
+    GroupCallsAllowed: boolean;
     pluginEnabled: boolean;
-    version: CallsVersion;
+    version: CallsVersionInfo;
     last_retrieved_at: number;
 }
 
@@ -170,6 +177,10 @@ export const DefaultCallsConfig: CallsConfigState = {
     EnableTranscriptions: false,
     EnableLiveCaptions: false,
     HostControlsAllowed: false,
+    EnableAV1: false,
+    TranscribeAPI: TranscribeAPI.WhisperCPP,
+    GroupCallsAllowed: true, // Set to true to keep backward compatibility with older servers.
+    EnableDCSignaling: false,
 };
 
 export type ApiResp = {
@@ -201,30 +212,11 @@ export type AudioDeviceInfo = {
     selectedAudioDevice: AudioDevice;
 };
 
-export type CallsVersion = {
-    version?: string;
-    build?: string;
-};
-
 export type LiveCaptionMobile = {
     captionId: string;
     sessionId: string;
     userId: string;
     text: string;
-}
-
-// DEPRECATED in favour of CallJobState since v2.16
-export type CallRecordingState = {
-    init_at: number;
-    start_at: number;
-    end_at: number;
-    err?: string;
-    error_at?: number;
-}
-
-export type CallRecordingStateData = {
-    recState: CallRecordingState;
-    callID: string;
 }
 
 // TODO: MM-57919, refactor wsmsg data to calls-common
