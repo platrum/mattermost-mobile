@@ -3,7 +3,7 @@
 
 import {toMilliseconds} from '@utils/datetime';
 
-export const PostTypes: Record<string, string> = {
+export const PostTypes = {
     CHANNEL_DELETED: 'system_channel_deleted',
     CHANNEL_UNARCHIVED: 'system_channel_restored',
     DISPLAYNAME_CHANGE: 'system_displayname_change',
@@ -35,7 +35,7 @@ export const PostTypes: Record<string, string> = {
     SYSTEM_AUTO_RESPONDER: 'system_auto_responder',
     CUSTOM_CALLS: 'custom_calls',
     CUSTOM_CALLS_RECORDING: 'custom_calls_recording',
-};
+} as const;
 
 export const PostPriorityColors = {
     URGENT: '#D24B4E',
@@ -77,4 +77,5 @@ export default {
         PostTypes.ADD_TO_TEAM,
         PostTypes.REMOVE_FROM_TEAM,
     ],
+    POST_TIME_TO_FAIL,
 };

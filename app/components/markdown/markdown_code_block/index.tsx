@@ -6,16 +6,15 @@ import Clipboard from '@react-native-clipboard/clipboard';
 import React, {useCallback, useMemo} from 'react';
 import {useIntl} from 'react-intl';
 import {Keyboard, StyleSheet, Text, type TextStyle, TouchableOpacity, View} from 'react-native';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import FormattedText from '@components/formatted_text';
 import SlideUpPanelItem, {ITEM_HEIGHT} from '@components/slide_up_panel_item';
 import {Screens} from '@constants';
 import {useTheme} from '@context/theme';
+import {usePreventDoubleTap} from '@hooks/utils';
 import {bottomSheet, dismissBottomSheet, goToScreen} from '@screens/navigation';
 import {bottomSheetSnapPoint} from '@utils/helpers';
 import {getHighlightLanguageFromNameOrAlias, getHighlightLanguageName} from '@utils/markdown';
-import {preventDoubleTap} from '@utils/tap';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 
 import type {SyntaxHiglightProps} from '@typings/components/syntax_highlight';
@@ -71,7 +70,6 @@ const MarkdownCodeBlock = ({language = '', content, textStyle}: MarkdownCodeBloc
     const intl = useIntl();
     const managedConfig = useManagedConfig<ManagedConfig>();
     const theme = useTheme();
-    const {bottom} = useSafeAreaInsets();
     const style = getStyleSheet(theme);
     const SyntaxHighlighter = useMemo(() => {
         if (!syntaxHighlighter) {
@@ -81,7 +79,7 @@ const MarkdownCodeBlock = ({language = '', content, textStyle}: MarkdownCodeBloc
         return syntaxHighlighter;
     }, []);
 
-    const handlePress = useCallback(preventDoubleTap(() => {
+    const handlePress = usePreventDoubleTap(useCallback(() => {
         const screen = Screens.CODE;
         const passProps = {
             code: content,
@@ -112,7 +110,7 @@ const MarkdownCodeBlock = ({language = '', content, textStyle}: MarkdownCodeBloc
         requestAnimationFrame(() => {
             goToScreen(screen, title, passProps);
         });
-    }), [content, intl.locale, language]);
+    }, [content, intl, language, textStyle]));
 
     const handleLongPress = useCallback(() => {
         if (managedConfig?.copyAndPasteProtection !== 'true') {
@@ -147,12 +145,12 @@ const MarkdownCodeBlock = ({language = '', content, textStyle}: MarkdownCodeBloc
             bottomSheet({
                 closeButtonId: 'close-code-block',
                 renderContent,
-                snapPoints: [1, bottomSheetSnapPoint(2, ITEM_HEIGHT, bottom)],
+                snapPoints: [1, bottomSheetSnapPoint(2, ITEM_HEIGHT)],
                 title: intl.formatMessage({id: 'post.options.title', defaultMessage: 'Options'}),
                 theme,
             });
         }
-    }, [managedConfig, intl, bottom, theme]);
+    }, [managedConfig?.copyAndPasteProtection, intl, theme, style.bottomSheet, content]);
 
     const trimContent = (text: string) => {
         const lines = text.split('\n');

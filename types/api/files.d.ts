@@ -16,13 +16,13 @@ type FileInfo = {
     mime_type: string;
     mini_preview?: string;
     name: string;
-    post_id: string;
+    post_id?: string;
     size: number;
     update_at?: number;
     uri?: string;
     user_id: string;
     width: number;
-    postProps?: Record<string, any>;
+    postProps?: Record<string, unknown>;
 };
 
 type FilesState = {

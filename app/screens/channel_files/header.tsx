@@ -1,16 +1,14 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 import React, {useCallback, useMemo} from 'react';
-import {useIntl} from 'react-intl';
+import {defineMessage, useIntl} from 'react-intl';
 import {Text, View} from 'react-native';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import Badge from '@components/badge';
 import CompassIcon from '@components/compass_icon';
 import Filter, {DIVIDERS_HEIGHT, FILTER_ITEM_HEIGHT, FilterData, NUMBER_FILTER_ITEMS} from '@components/files/file_filter';
 import {useTheme} from '@context/theme';
 import {useIsTablet} from '@hooks/device';
-import {t} from '@i18n';
 import {TITLE_SEPARATOR_MARGIN, TITLE_SEPARATOR_MARGIN_TABLET, TITLE_HEIGHT} from '@screens/bottom_sheet/content';
 import {bottomSheet} from '@screens/navigation';
 import {type FileFilter, FileFilters} from '@utils/file';
@@ -58,16 +56,15 @@ const Header = ({
     const theme = useTheme();
     const styles = getStyleFromTheme(theme);
     const intl = useIntl();
-    const {bottom} = useSafeAreaInsets();
     const isTablet = useIsTablet();
     const hasFilters = selectedFilter !== FileFilters.ALL;
     const messageObject = hasFilters ? {
         id: FilterData[selectedFilter].id,
         defaultMessage: FilterData[selectedFilter].defaultMessage,
-    } : {
-        id: t('screen.channel_files.header.recent_files'),
+    } : defineMessage({
+        id: 'screen.channel_files.header.recent_files',
         defaultMessage: 'Recent Files',
-    };
+    });
 
     const messagesText = intl.formatMessage(messageObject);
     const title = intl.formatMessage({id: 'screen.channel_files.results.filter.title', defaultMessage: 'Filter by file type'});
@@ -78,10 +75,9 @@ const Header = ({
             bottomSheetSnapPoint(
                 NUMBER_FILTER_ITEMS,
                 FILTER_ITEM_HEIGHT,
-                bottom,
             ) + TITLE_HEIGHT + DIVIDERS_HEIGHT + (isTablet ? TITLE_SEPARATOR_MARGIN_TABLET : TITLE_SEPARATOR_MARGIN),
         ];
-    }, []);
+    }, [isTablet]);
 
     const handleFilterPress = useCallback(() => {
         const renderContent = () => {
@@ -100,7 +96,7 @@ const Header = ({
             theme,
             title,
         });
-    }, [onFilterChanged, selectedFilter]);
+    }, [onFilterChanged, selectedFilter, snapPoints, theme, title]);
 
     return (
         <View style={styles.container}>

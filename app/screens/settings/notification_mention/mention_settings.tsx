@@ -2,8 +2,9 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useMemo, useState} from 'react';
-import {useIntl} from 'react-intl';
+import {defineMessage, useIntl} from 'react-intl';
 import {Text} from 'react-native';
+import {KeyboardAwareScrollView} from 'react-native-keyboard-aware-scroll-view';
 
 import {updateMe} from '@actions/remote/user';
 import FloatingTextChipsInput from '@components/floating_text_chips_input';
@@ -14,7 +15,6 @@ import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import useBackNavigation from '@hooks/navigate_back';
-import {t} from '@i18n';
 import {popTopScreen} from '@screens/navigation';
 import ReplySettings from '@screens/settings/notification_mention/reply_settings';
 import {areBothStringArraysEqual} from '@utils/helpers';
@@ -25,15 +25,16 @@ import {getNotificationProps} from '@utils/user';
 import type UserModel from '@typings/database/models/servers/user';
 import type {AvailableScreens} from '@typings/screens/navigation';
 
-const mentionHeaderText = {
-    id: t('notification_settings.mentions.keywords_mention'),
+const mentionHeaderText = defineMessage({
+    id: 'notification_settings.mentions.keywords_mention',
     defaultMessage: 'Keywords that trigger mentions',
-};
+});
 
 const COMMA_KEY = ',';
 
 const getStyleSheet = makeStyleSheetFromTheme((theme) => {
     return {
+        flex: {flex: 1},
         input: {
             color: theme.centerChannelColor,
             paddingHorizontal: 15,
@@ -130,8 +131,6 @@ const MentionSettings = ({componentId, currentUser, isCRTEnabled}: Props) => {
     const styles = getStyleSheet(theme);
     const intl = useIntl();
 
-    const close = () => popTopScreen(componentId);
-
     const saveMention = useCallback(() => {
         if (!currentUser) {
             return;
@@ -164,17 +163,10 @@ const MentionSettings = ({componentId, currentUser, isCRTEnabled}: Props) => {
             updateMe(serverUrl, {notify_props});
         }
 
-        close();
+        popTopScreen(componentId);
     }, [
-        channelMentionOn,
-        firstNameMentionOn,
-        usernameMentionOn,
-        mentionKeywords,
-        notifyProps,
-        mentionProps,
-        replyNotificationType,
-        serverUrl,
-        currentUser,
+        componentId, currentUser, channelMentionOn, replyNotificationType, firstNameMentionOn,
+        usernameMentionOn, mentionKeywords, mentionProps, notifyProps, serverUrl,
     ]);
 
     const handleFirstNameToggle = useCallback(() => {
@@ -226,7 +218,16 @@ const MentionSettings = ({componentId, currentUser, isCRTEnabled}: Props) => {
     useAndroidHardwareBackHandler(componentId, saveMention);
 
     return (
-        <>
+        <KeyboardAwareScrollView
+            bounces={false}
+            enableAutomaticScroll={true}
+            enableOnAndroid={true}
+            keyboardShouldPersistTaps='handled'
+            keyboardDismissMode='none'
+            scrollToOverflowEnabled={true}
+            noPaddingBottomOnAndroid={true}
+            style={styles.flex}
+        >
             <SettingBlock
                 headerText={mentionHeaderText}
             >
@@ -303,7 +304,7 @@ const MentionSettings = ({componentId, currentUser, isCRTEnabled}: Props) => {
                     setReplyNotificationType={setReplyNotificationType}
                 />
             )}
-        </>
+        </KeyboardAwareScrollView>
     );
 };
 

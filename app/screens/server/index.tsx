@@ -3,23 +3,24 @@
 
 import {useManagedConfig} from '@mattermost/react-native-emm';
 import React, {useCallback, useEffect, useRef, useState} from 'react';
-import {useIntl} from 'react-intl';
-import {Alert, BackHandler, Platform, useWindowDimensions, View} from 'react-native';
+import {defineMessage, useIntl} from 'react-intl';
+import {Alert, BackHandler, View} from 'react-native';
 import {KeyboardAwareScrollView} from 'react-native-keyboard-aware-scroll-view';
 import {Navigation} from 'react-native-navigation';
-import Animated, {ReduceMotion, useAnimatedStyle, useSharedValue, withTiming} from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
 import {doPing} from '@actions/remote/general';
 import {fetchConfigAndLicense} from '@actions/remote/systems';
 import LocalConfig from '@assets/config.json';
 import AppVersion from '@components/app_version';
-import {Screens, Launch} from '@constants';
+import {Screens, Launch, DeepLink} from '@constants';
 import useNavButtonPressed from '@hooks/navigation_button_pressed';
-import {t} from '@i18n';
+import {useScreenTransitionAnimation} from '@hooks/screen_transition_animation';
 import {getServerCredentials} from '@init/credentials';
 import PushNotifications from '@init/push_notifications';
 import NetworkManager from '@managers/network_manager';
+import SecurityManager from '@managers/security_manager';
 import {getServerByDisplayName, getServerByIdentifier} from '@queries/app/servers';
 import Background from '@screens/background';
 import {dismissModal, goToScreen, loginAnimationOptions, popTopScreen} from '@screens/navigation';
@@ -45,21 +46,26 @@ interface ServerProps extends LaunchProps {
 
 let cancelPing: undefined | (() => void);
 
-const defaultServerUrlMessage = {
-    id: t('mobile.server_url.empty'),
+const defaultServerUrlMessage = defineMessage({
+    id: 'mobile.server_url.empty',
     defaultMessage: 'Please enter a valid server URL',
-};
+});
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     appInfo: {
         color: changeOpacity(theme.centerChannelColor, 0.56),
+    },
+    appVersionContainer: {
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        marginTop: 24,
     },
     flex: {
         flex: 1,
     },
     scrollContainer: {
         alignItems: 'center',
-        height: '90%',
+        flexGrow: 1,
         justifyContent: 'center',
     },
 }));
@@ -80,12 +86,11 @@ const Server = ({
 }: ServerProps) => {
     const intl = useIntl();
     const managedConfig = useManagedConfig<ManagedConfig>();
-    const dimensions = useWindowDimensions();
-    const translateX = useSharedValue(animated ? dimensions.width : 0);
     const keyboardAwareRef = useRef<KeyboardAwareScrollView>(null);
     const [connecting, setConnecting] = useState(false);
     const [displayName, setDisplayName] = useState<string>('');
     const [buttonDisabled, setButtonDisabled] = useState(true);
+    const [preauthSecret, setPreauthSecret] = useState<string>('');
     const [url, setUrl] = useState<string>('');
     const [displayNameError, setDisplayNameError] = useState<string | undefined>();
     const [urlError, setUrlError] = useState<string | undefined>();
@@ -98,6 +103,8 @@ const Server = ({
         NetworkManager.invalidateClient(url);
         dismissModal({componentId});
     };
+
+    const animatedStyles = useScreenTransitionAnimation(componentId, animated);
 
     useEffect(() => {
         let serverName: string | undefined = defaultDisplayName || managedConfig?.serverName || LocalConfig.DefaultServerName;
@@ -136,7 +143,7 @@ const Server = ({
             // If no other servers are allowed or the local config for AutoSelectServerUrl is set, attempt to connect
             handleConnect(managedConfig?.serverUrl || LocalConfig.DefaultServerUrl);
         }
-    }, [managedConfig?.allowOtherServers, managedConfig?.serverUrl, managedConfig?.serverName]);
+    }, [managedConfig?.allowOtherServers, managedConfig?.serverUrl, managedConfig?.serverName, defaultServerUrl]);
 
     useEffect(() => {
         if (url && displayName) {
@@ -149,19 +156,15 @@ const Server = ({
     useEffect(() => {
         const listener = {
             componentDidAppear: () => {
-                translateX.value = 0;
                 if (url) {
                     NetworkManager.invalidateClient(url);
                 }
-            },
-            componentDidDisappear: () => {
-                translateX.value = -dimensions.width;
             },
         };
         const unsubscribe = Navigation.events().registerComponentListener(listener, componentId);
 
         return () => unsubscribe.remove();
-    }, [componentId, url, dimensions]);
+    }, [componentId, url]);
 
     useEffect(() => {
         const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -182,10 +185,6 @@ const Server = ({
         return () => backHandler.remove();
     }, []);
 
-    useEffect(() => {
-        translateX.value = 0;
-    }, []);
-
     useNavButtonPressed(closeButtonId || '', componentId, dismiss, []);
 
     const displayLogin = (serverUrl: string, config: ClientConfig, license: ClientLicense) => {
@@ -198,6 +197,7 @@ const Server = ({
             launchType,
             license,
             serverDisplayName: displayName,
+            serverPreauthSecret: preauthSecret.trim() || undefined,
             serverUrl,
             ssoOptions,
             theme,
@@ -208,6 +208,12 @@ const Server = ({
         if (redirectSSO) {
             // @ts-expect-error ssoType not in definition
             passProps.ssoType = enabledSSOs[0];
+        }
+
+        // if deeplink is of type server removing the deeplink info on new login
+        if (extra?.type === DeepLink.Server) {
+            passProps.extra = undefined;
+            passProps.launchType = Launch.Normal;
         }
 
         goToScreen(screen, '', passProps, loginAnimationOptions());
@@ -269,6 +275,10 @@ const Server = ({
         setUrl(text);
     }, []);
 
+    const handlePreauthSecretTextChanged = useCallback((text: string) => {
+        setPreauthSecret(text);
+    }, []);
+
     const isServerUrlValid = (serverUrl?: string) => {
         const testUrl = sanitizeUrl(serverUrl ?? url);
         if (!isValidUrl(testUrl)) {
@@ -290,7 +300,7 @@ const Server = ({
             cancelPing = undefined;
         };
 
-        const ping = await getServerUrlAfterRedirect(pingUrl, !retryWithHttp);
+        const ping = await getServerUrlAfterRedirect(pingUrl, !retryWithHttp, preauthSecret.trim() || undefined);
         if (!ping.url) {
             cancelPing();
             if (retryWithHttp) {
@@ -303,7 +313,7 @@ const Server = ({
             }
             return;
         }
-        const result = await doPing(ping.url, true, managedConfig?.timeout ? parseInt(managedConfig?.timeout, 10) : undefined);
+        const result = await doPing(ping.url, true, managedConfig?.timeout ? parseInt(managedConfig?.timeout, 10) : undefined, preauthSecret.trim() || undefined);
 
         if (canceled) {
             return;
@@ -334,6 +344,22 @@ const Server = ({
             return;
         }
 
+        if (data.config.MobileJailbreakProtection === 'true') {
+            const isJailbroken = await SecurityManager.isDeviceJailbroken(ping.url, data.config.SiteName);
+            if (isJailbroken) {
+                setConnecting(false);
+                return;
+            }
+        }
+
+        if (data.config.MobileEnableBiometrics === 'true') {
+            const biometricsResult = await SecurityManager.authenticateWithBiometrics(ping.url, data.config.SiteName);
+            if (!biometricsResult) {
+                setConnecting(false);
+                return;
+            }
+        }
+
         const server = await getServerByIdentifier(data.config.DiagnosticId);
         const credentials = await getServerCredentials(ping.url);
         setConnecting(false);
@@ -350,27 +376,21 @@ const Server = ({
         displayLogin(ping.url, data.config!, data.license!);
     };
 
-    const transform = useAnimatedStyle(() => {
-        const duration = Platform.OS === 'android' ? 250 : 350;
-        return {
-            transform: [{translateX: withTiming(translateX.value, {duration, reduceMotion: ReduceMotion.Never})}],
-        };
-    }, []);
-
     return (
         <View
             style={styles.flex}
             testID='server.screen'
+            nativeID={SecurityManager.getShieldScreenId(componentId, false, true)}
         >
             <Background theme={theme}/>
             <AnimatedSafeArea
                 key={'server_content'}
-                style={[styles.flex, transform]}
+                style={[styles.flex, animatedStyles]}
             >
                 <KeyboardAwareScrollView
                     bounces={false}
                     contentContainerStyle={styles.scrollContainer}
-                    enableAutomaticScroll={Platform.OS === 'android'}
+                    enableAutomaticScroll={false}
                     enableOnAndroid={false}
                     enableResetScrollToCoords={true}
                     extraScrollHeight={20}
@@ -393,15 +413,21 @@ const Server = ({
                         disableServerUrl={disableServerUrl}
                         handleConnect={handleConnect}
                         handleDisplayNameTextChanged={handleDisplayNameTextChanged}
+                        handlePreauthSecretTextChanged={handlePreauthSecretTextChanged}
                         handleUrlTextChanged={handleUrlTextChanged}
-                        isModal={isModal}
                         keyboardAwareRef={keyboardAwareRef}
+                        preauthSecret={preauthSecret}
                         theme={theme}
                         url={url}
                         urlError={urlError}
                     />
+                    <View style={styles.appVersionContainer}>
+                        <AppVersion
+                            textStyle={styles.appInfo}
+                            isWrapped={false}
+                        />
+                    </View>
                 </KeyboardAwareScrollView>
-                <AppVersion textStyle={styles.appInfo}/>
             </AnimatedSafeArea>
         </View>
     );

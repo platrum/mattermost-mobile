@@ -6,9 +6,10 @@ import {useIntl} from 'react-intl';
 
 import {enableChannelCalls} from '@calls/actions';
 import {useTryCallsFunction} from '@calls/hooks';
+import {getCallsConfig} from '@calls/state';
 import OptionItem from '@components/option_item';
 import {useServerUrl} from '@context/server';
-import {preventDoubleTap} from '@utils/tap';
+import {usePreventDoubleTap} from '@hooks/utils';
 
 interface Props {
     channelId: string;
@@ -28,9 +29,16 @@ const ChannelInfoEnableCalls = ({channelId, enabled}: Props) => {
     const disableText = formatMessage({id: 'mobile.calls_disable', defaultMessage: 'Disable calls'});
     const enableText = formatMessage({id: 'mobile.calls_enable', defaultMessage: 'Enable calls'});
 
+    const config = getCallsConfig(serverUrl);
+    if (!config.pluginEnabled) {
+        return null;
+    }
+
+    const onPress = usePreventDoubleTap(tryOnPress);
+
     return (
         <OptionItem
-            action={preventDoubleTap(tryOnPress)}
+            action={onPress}
             label={(enabled ? disableText : enableText) + msgPostfix}
             icon='phone'
             type='default'

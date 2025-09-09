@@ -4,7 +4,6 @@
 import React, {useCallback, useMemo} from 'react';
 import {useIntl} from 'react-intl';
 import {TouchableOpacity} from 'react-native';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import {buildProfileImageUrlFromUser} from '@actions/remote/user';
 import CompassIcon from '@components/compass_icon';
@@ -13,12 +12,12 @@ import {ITEM_HEIGHT} from '@components/slide_up_panel_item';
 import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
 import {useIsTablet} from '@hooks/device';
+import {usePreventDoubleTap} from '@hooks/utils';
 import {TITLE_HEIGHT} from '@screens/bottom_sheet/content';
 import PanelItem from '@screens/edit_profile/components/panel_item';
 import {bottomSheet} from '@screens/navigation';
 import PickerUtil from '@utils/file/file_picker';
 import {bottomSheetSnapPoint} from '@utils/helpers';
-import {preventDoubleTap} from '@utils/tap';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -68,14 +67,13 @@ const ProfileImagePicker = ({
 }: ImagePickerProps) => {
     const theme = useTheme();
     const intl = useIntl();
-    const {bottom} = useSafeAreaInsets();
     const serverUrl = useServerUrl();
     const pictureUtils = useMemo(() => new PickerUtil(intl, uploadFiles), [uploadFiles, intl]);
     const canRemovePicture = hasPictureUrl(user, serverUrl);
     const styles = getStyleSheet(theme);
     const isTablet = useIsTablet();
 
-    const showFileAttachmentOptions = useCallback(preventDoubleTap(() => {
+    const showFileAttachmentOptions = usePreventDoubleTap(useCallback(() => {
         const renderContent = () => {
             return (
                 <>
@@ -109,7 +107,7 @@ const ProfileImagePicker = ({
             );
         };
 
-        const snapPoint = bottomSheetSnapPoint(4, ITEM_HEIGHT, bottom) + TITLE_HEIGHT;
+        const snapPoint = bottomSheetSnapPoint(4, ITEM_HEIGHT) + TITLE_HEIGHT;
 
         return bottomSheet({
             closeButtonId: 'close-edit-profile',
@@ -118,7 +116,7 @@ const ProfileImagePicker = ({
             title: 'Change profile photo',
             theme,
         });
-    }), [canRemovePicture, onRemoveProfileImage, bottom, pictureUtils, theme]);
+    }, [canRemovePicture, isTablet, onRemoveProfileImage, pictureUtils, styles.title, theme]));
 
     return (
         <TouchableOpacity

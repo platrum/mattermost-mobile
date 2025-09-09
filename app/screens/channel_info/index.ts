@@ -8,9 +8,12 @@ import {distinctUntilChanged, switchMap, combineLatestWith} from 'rxjs/operators
 import {observeIsCallsEnabledInChannel} from '@calls/observers';
 import {observeCallsConfig} from '@calls/state';
 import {withServerUrl} from '@context/server';
+import {observeIsPlaybooksEnabled} from '@playbooks/database/queries/version';
 import {observeCurrentChannel} from '@queries/servers/channel';
+import {observeCanAddBookmarks} from '@queries/servers/channel_bookmark';
 import {observeCanManageChannelMembers, observeCanManageChannelSettings} from '@queries/servers/role';
 import {
+    observeConfigBooleanValue,
     observeConfigValue,
     observeCurrentChannelId,
     observeCurrentTeamId,
@@ -41,6 +44,11 @@ const enhanced = withObservables([], ({serverUrl, database}: Props) => {
         switchMap(([tId, uId]) => observeUserIsTeamAdmin(database, uId, tId)),
     );
 
+    const callsPluginEnabled = observeCallsConfig(serverUrl).pipe(
+        switchMap((config) => of$(config.pluginEnabled)),
+        distinctUntilChanged(),
+    );
+
     // callsDefaultEnabled means "live mode" post 7.6
     const callsDefaultEnabled = observeCallsConfig(serverUrl).pipe(
         switchMap((config) => of$(config.DefaultEnabled)),
@@ -59,12 +67,14 @@ const enhanced = withObservables([], ({serverUrl, database}: Props) => {
         switchMap(([uId, chId]) => observeUserIsChannelAdmin(database, uId, chId)),
         distinctUntilChanged(),
     );
-    const callsGAServer = observeConfigValue(database, 'Version').pipe(
+    const serverVersion = observeConfigValue(database, 'Version');
+    const callsGAServer = serverVersion.pipe(
         switchMap((v) => of$(isMinimumServerVersion(v || '', 7, 6))),
     );
     const dmOrGM = type.pipe(switchMap((t) => of$(isTypeDMorGM(t))));
-    const canEnableDisableCalls = combineLatest([callsDefaultEnabled, allowEnableCalls, systemAdmin, channelAdmin, callsGAServer, dmOrGM, isTeamAdmin]).pipe(
-        switchMap(([liveMode, allow, sysAdmin, chAdmin, gaServer, dmGM, tAdmin]) => {
+    const canEnableDisableCalls = combineLatest([callsPluginEnabled, callsDefaultEnabled, allowEnableCalls, systemAdmin, channelAdmin, callsGAServer, dmOrGM, isTeamAdmin]).pipe(
+        switchMap(([pluginEnabled, liveMode, allow, sysAdmin, chAdmin, gaServer, dmGM, tAdmin]) => {
+            // Always false if the plugin is not enabled.
             // if GA 7.6:
             //   allow (will always be true) and !liveMode = system admins can enable/disable
             //   allow (will always be true) and liveMode = channel, team, system admins, DM/GM participants can enable/disable
@@ -74,6 +84,10 @@ const enhanced = withObservables([], ({serverUrl, database}: Props) => {
             //   !allow and !liveMode = system admins can enable/disable -- can combine with below
             //   !allow and liveMode  = system admins can enable/disable -- can combine with above
             // Note: There are ways to 'simplify' the conditions below. Here we're preferring clarity.
+
+            if (!pluginEnabled) {
+                return of$(false);
+            }
 
             if (gaServer) {
                 if (allow && !liveMode) {
@@ -99,6 +113,10 @@ const enhanced = withObservables([], ({serverUrl, database}: Props) => {
         }),
     );
     const isCallsEnabledInChannel = observeIsCallsEnabledInChannel(database, serverUrl, observeCurrentChannelId(database));
+    const groupCallsAllowed = observeCallsConfig(serverUrl).pipe(
+        switchMap((config) => of$(config.GroupCallsAllowed)),
+        distinctUntilChanged(),
+    );
 
     const canManageMembers = currentUser.pipe(
         combineLatestWith(channelId),
@@ -117,19 +135,33 @@ const enhanced = withObservables([], ({serverUrl, database}: Props) => {
         distinctUntilChanged(),
     );
 
-    const isConvertGMFeatureAvailable = observeConfigValue(database, 'Version').pipe(
+    const isConvertGMFeatureAvailable = serverVersion.pipe(
         switchMap((version) => of$(isMinimumServerVersion(version || '', 9, 1))),
     );
+
+    const isBookmarksEnabled = observeConfigBooleanValue(database, 'FeatureFlagChannelBookmarks');
+
+    const canAddBookmarks = channelId.pipe(
+        switchMap((cId) => {
+            return observeCanAddBookmarks(database, cId);
+        }),
+    );
+
+    const isPlaybooksEnabled = observeIsPlaybooksEnabled(database);
 
     return {
         type,
         canEnableDisableCalls,
         isCallsEnabledInChannel,
+        groupCallsAllowed,
+        canAddBookmarks,
         canManageMembers,
-        isCRTEnabled: observeIsCRTEnabled(database),
         canManageSettings,
+        isBookmarksEnabled,
+        isCRTEnabled: observeIsCRTEnabled(database),
         isGuestUser,
         isConvertGMFeatureAvailable,
+        isPlaybooksEnabled,
     };
 });
 

@@ -37,7 +37,7 @@ import {
     Screens,
 } from '@constants';
 import DatabaseManager from '@database/manager';
-import {DEFAULT_LOCALE, getLocalizedMessage, t} from '@i18n';
+import {DEFAULT_LOCALE, getLocalizedMessage} from '@i18n';
 import {getServerDisplayName} from '@queries/app/servers';
 import {getCurrentChannelId} from '@queries/servers/system';
 import {getIsCRTEnabled, getThreadById} from '@queries/servers/thread';

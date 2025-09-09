@@ -1,17 +1,15 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {Button} from '@rneui/base';
-import React, {type MutableRefObject, useCallback, useEffect, useRef} from 'react';
-import {useIntl} from 'react-intl';
-import {Keyboard, Platform, useWindowDimensions, View} from 'react-native';
+import React, {type RefObject, useCallback, useRef, useState} from 'react';
+import {defineMessages, useIntl} from 'react-intl';
+import {Keyboard, Pressable, View} from 'react-native';
 
+import Button from '@components/button';
+import CompassIcon from '@components/compass_icon';
 import FloatingTextInput, {type FloatingTextInputRef} from '@components/floating_text_input_label';
 import FormattedText from '@components/formatted_text';
-import Loading from '@components/loading';
-import {useIsTablet} from '@hooks/device';
-import {t} from '@i18n';
-import {buttonBackgroundStyle, buttonTextStyle} from '@utils/buttonStyles';
+import {useAvoidKeyboard} from '@hooks/device';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
 
@@ -26,9 +24,10 @@ type Props = {
     disableServerUrl: boolean;
     handleConnect: () => void;
     handleDisplayNameTextChanged: (text: string) => void;
+    handlePreauthSecretTextChanged: (text: string) => void;
     handleUrlTextChanged: (text: string) => void;
-    isModal?: boolean;
-    keyboardAwareRef: MutableRefObject<KeyboardAwareScrollView | null>;
+    keyboardAwareRef: RefObject<KeyboardAwareScrollView>;
+    preauthSecret?: string;
     theme: Theme;
     url?: string;
     urlError?: string;
@@ -53,21 +52,54 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
         marginTop: 8,
         ...typography('Body', 75, 'Regular'),
     },
-    connectButton: {
+    advancedOptionsContainer: {
+        width: '100%',
+        marginTop: 16,
+    },
+    advancedOptionsHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'flex-start',
+        paddingVertical: 12,
+        paddingHorizontal: 4,
+    },
+    advancedOptionsTitle: {
+        color: theme.linkColor,
+        ...typography('Body', 75, 'SemiBold'),
+    },
+    advancedOptionsContent: {
+        width: '100%',
+    },
+    connectButtonContainer: {
         width: '100%',
         marginTop: 32,
         marginLeft: 20,
         marginRight: 20,
     },
-    connectingIndicator: {
-        marginRight: 10,
-    },
-    loadingContainerStyle: {
-        marginRight: 10,
-        padding: 0,
-        top: -2,
-    },
 }));
+
+const messages = defineMessages({
+    connect: {
+        id: 'mobile.components.select_server_view.connect',
+        defaultMessage: 'Connect',
+    },
+    connecting: {
+        id: 'mobile.components.select_server_view.connecting',
+        defaultMessage: 'Connecting',
+    },
+    advancedOptions: {
+        id: 'mobile.components.select_server_view.advancedOptions',
+        defaultMessage: 'Advanced Options',
+    },
+    preauthSecret: {
+        id: 'mobile.components.select_server_view.sharedSecret',
+        defaultMessage: 'Pre-authentication secret',
+    },
+    preauthSecretHelp: {
+        id: 'mobile.components.select_server_view.sharedSecretHelp',
+        defaultMessage: 'The pre-authentication secret shared by the administrator',
+    },
+});
 
 const ServerForm = ({
     autoFocus = false,
@@ -78,84 +110,44 @@ const ServerForm = ({
     disableServerUrl,
     handleConnect,
     handleDisplayNameTextChanged,
+    handlePreauthSecretTextChanged,
     handleUrlTextChanged,
-    isModal,
     keyboardAwareRef,
+    preauthSecret = '',
     theme,
     url = '',
     urlError,
 }: Props) => {
     const {formatMessage} = useIntl();
-    const isTablet = useIsTablet();
-    const dimensions = useWindowDimensions();
     const displayNameRef = useRef<FloatingTextInputRef>(null);
+    const preauthSecretRef = useRef<FloatingTextInputRef>(null);
     const urlRef = useRef<FloatingTextInputRef>(null);
     const styles = getStyleSheet(theme);
 
-    const focus = () => {
-        if (Platform.OS === 'ios') {
-            let offsetY = isModal ? 120 : 160;
-            if (isTablet) {
-                const {width, height} = dimensions;
-                const isLandscape = width > height;
-                offsetY = isLandscape ? 230 : 100;
-            }
-            requestAnimationFrame(() => {
-                keyboardAwareRef.current?.scrollToPosition(0, offsetY);
-            });
-        }
-    };
+    const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
-    const onBlur = useCallback(() => {
-        if (Platform.OS === 'ios') {
-            const reset = !displayNameRef.current?.isFocused() && !urlRef.current?.isFocused();
-            if (reset) {
-                keyboardAwareRef.current?.scrollToPosition(0, 0);
-            }
-        }
-    }, []);
+    useAvoidKeyboard(keyboardAwareRef);
 
     const onConnect = useCallback(() => {
         Keyboard.dismiss();
         handleConnect();
-    }, [buttonDisabled, connecting, displayName, theme, url]);
-
-    const onFocus = useCallback(() => {
-        focus();
-    }, [dimensions]);
+    }, [handleConnect]);
 
     const onUrlSubmit = useCallback(() => {
         displayNameRef.current?.focus();
     }, []);
 
-    useEffect(() => {
-        if (Platform.OS === 'ios' && isTablet) {
-            if (urlRef.current?.isFocused() || displayNameRef.current?.isFocused()) {
-                focus();
-            } else {
-                keyboardAwareRef.current?.scrollToPosition(0, 0);
-            }
+    const onDisplayNameSubmit = useCallback(() => {
+        if (showAdvancedOptions) {
+            preauthSecretRef.current?.focus();
+        } else {
+            onConnect();
         }
-    }, [dimensions, isTablet]);
+    }, [showAdvancedOptions, onConnect]);
 
-    const buttonType = buttonDisabled ? 'disabled' : 'default';
-    const styleButtonText = buttonTextStyle(theme, 'lg', 'primary', buttonType);
-    const styleButtonBackground = buttonBackgroundStyle(theme, 'lg', 'primary', buttonType);
-
-    let buttonID = t('mobile.components.select_server_view.connect');
-    let buttonText = 'Connect';
-    let buttonIcon;
-
-    if (connecting) {
-        buttonID = t('mobile.components.select_server_view.connecting');
-        buttonText = 'Connecting';
-        buttonIcon = (
-            <Loading
-                containerStyle={styles.loadingContainerStyle}
-                color={theme.buttonColor}
-            />
-        );
-    }
+    const toggleAdvancedOptions = useCallback(() => {
+        setShowAdvancedOptions(!showAdvancedOptions);
+    }, [showAdvancedOptions]);
 
     const connectButtonTestId = buttonDisabled ? 'server_form.connect.button.disabled' : 'server_form.connect.button';
 
@@ -166,7 +158,6 @@ const ServerForm = ({
                     autoCorrect={false}
                     autoCapitalize={'none'}
                     autoFocus={autoFocus}
-                    blurOnSubmit={false}
                     containerStyle={styles.enterServer}
                     enablesReturnKeyAutomatically={true}
                     editable={!disableServerUrl}
@@ -176,9 +167,7 @@ const ServerForm = ({
                         id: 'mobile.components.select_server_view.enterServerUrl',
                         defaultMessage: 'Enter Server URL',
                     })}
-                    onBlur={onBlur}
                     onChangeText={handleUrlTextChanged}
-                    onFocus={onFocus}
                     onSubmitEditing={onUrlSubmit}
                     ref={urlRef}
                     returnKeyType='next'
@@ -198,18 +187,17 @@ const ServerForm = ({
                         id: 'mobile.components.select_server_view.displayName',
                         defaultMessage: 'Display Name',
                     })}
-                    onBlur={onBlur}
                     onChangeText={handleDisplayNameTextChanged}
-                    onFocus={onFocus}
-                    onSubmitEditing={onConnect}
+                    onSubmitEditing={onDisplayNameSubmit}
                     ref={displayNameRef}
-                    returnKeyType='done'
+                    returnKeyType={showAdvancedOptions ? 'next' : 'done'}
                     spellCheck={false}
                     testID='server_form.server_display_name.input'
                     theme={theme}
                     value={displayName}
                 />
             </View>
+
             {!displayNameError &&
             <FormattedText
                 defaultMessage={'Choose a display name for your server'}
@@ -218,20 +206,62 @@ const ServerForm = ({
                 testID={'server_form.display_help'}
             />
             }
-            <Button
-                containerStyle={styles.connectButton}
-                disabled={buttonDisabled}
-                onPress={onConnect}
-                testID={connectButtonTestId}
-                buttonStyle={styleButtonBackground}
-            >
-                {buttonIcon}
-                <FormattedText
-                    defaultMessage={buttonText}
-                    id={buttonID}
-                    style={styleButtonText}
+
+            <View style={styles.advancedOptionsContainer}>
+                <Pressable
+                    onPress={toggleAdvancedOptions}
+                    style={styles.advancedOptionsHeader}
+                    testID='server_form.advanced_options.toggle'
+                >
+                    <CompassIcon
+                        name={showAdvancedOptions ? 'chevron-up' : 'chevron-down'}
+                        size={20}
+                        style={styles.advancedOptionsTitle}
+                    />
+                    <FormattedText
+                        defaultMessage='Advanced Options'
+                        id='mobile.components.select_server_view.advancedOptions'
+                        style={styles.advancedOptionsTitle}
+                    />
+                </Pressable>
+
+                {showAdvancedOptions && (
+                    <View style={styles.advancedOptionsContent}>
+                        <FloatingTextInput
+                            autoCorrect={false}
+                            autoCapitalize={'none'}
+                            enablesReturnKeyAutomatically={true}
+                            label={formatMessage(messages.preauthSecret)}
+                            onChangeText={handlePreauthSecretTextChanged}
+                            onSubmitEditing={onConnect}
+                            ref={preauthSecretRef}
+                            returnKeyType='done'
+                            secureTextEntry={true}
+                            spellCheck={false}
+                            testID='server_form.preauth_secret.input'
+                            theme={theme}
+                            value={preauthSecret}
+                        />
+                        <FormattedText
+                            {...messages.preauthSecretHelp}
+                            style={styles.chooseText}
+                            testID='server_form.preauth_secret_help'
+                        />
+                    </View>
+                )}
+            </View>
+
+            <View style={styles.connectButtonContainer}>
+                <Button
+                    disabled={buttonDisabled}
+                    onPress={onConnect}
+                    testID={connectButtonTestId}
+                    size='lg'
+                    theme={theme}
+                    text={formatMessage(connecting ? messages.connecting : messages.connect)}
+                    showLoader={connecting}
                 />
-            </Button>
+            </View>
         </View>
     );
 };

@@ -7,6 +7,7 @@ interface ClientConfig {
     AllowCustomThemes: string;
     AllowEditPost: string;
     AllowedThemes: string;
+    AllowDownloadLogs: string;
     AndroidAppDownloadLink: string;
     AndroidLatestVersion: string;
     AndroidMinVersion: string;
@@ -51,6 +52,7 @@ interface ClientConfig {
     EnableCommands: string;
     EnableCompliance: string;
     EnableConfirmNotificationsToChannel: string;
+    EnableCrossTeamSearch: 'true' | 'false';
     EnableCustomBrand: string;
     EnableCustomEmoji: string;
     EnableCustomTermsOfService: string;
@@ -120,6 +122,8 @@ interface ClientConfig {
     FeatureFlagAppsEnabled?: string;
     FeatureFlagCollapsedThreads?: string;
     FeatureFlagPostPriority?: string;
+    FeatureFlagChannelBookmarks?: string;
+    FeatureFlagCustomProfileAttributes?: string;
     ForgotPasswordLink?: string;
     GfycatApiKey: string;
     GfycatApiSecret: string;
@@ -146,6 +150,12 @@ interface ClientConfig {
     MaxNotificationsPerChannel: string;
     MaxPostSize: string;
     MinimumHashtagLength: string;
+    MobileAllowPdfLinkNavigation: string;
+    MobileEnableBiometrics: string;
+    MobileEnableSecureFilePreview: string;
+    MobileJailbreakProtection: string;
+    MobilePreventScreenCapture: string;
+    MobileExternalBrowser: string;
     OpenIdButtonColor: string;
     OpenIdButtonText: string;
     PasswordEnableForgotLink: string;
@@ -165,6 +175,8 @@ interface ClientConfig {
     PersistentNotificationIntervalMinutes: string;
     PrivacyPolicyLink: string;
     ReportAProblemLink: string;
+    ReportAProblemMail: string;
+    ReportAProblemType: string;
     RequireEmailVerification: string;
     RestrictDirectMessage: string;
     RunJobs: string;
@@ -177,6 +189,7 @@ interface ClientConfig {
     SamlLoginButtonTextColor: string;
     SamlNicknameAttributeSet: string;
     SamlPositionAttributeSet: string;
+    ScheduledPosts: string;
     SchemaVersion: string;
     SendEmailNotifications: string;
     SendPushNotifications: string;
@@ -186,6 +199,7 @@ interface ClientConfig {
     SiteURL: string;
     SupportEmail: string;
     TeammateNameDisplay: string;
+    TelemetryId: string;
     TermsOfServiceLink: string;
     TimeBetweenUserTypingUpdatesMilliseconds: string;
     Version: string;
@@ -193,3 +207,5 @@ interface ClientConfig {
     WebsocketSecurePort: string;
     WebsocketURL: string;
 }
+
+type SecurityClientConfig = Pick<ClientConfig, 'MobileEnableBiometrics' | 'MobileJailbreakProtection' | 'MobilePreventScreenCapture' | 'SiteName'>
