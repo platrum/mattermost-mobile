@@ -40,6 +40,8 @@ const WebsocketEvents = {
     PREFERENCES_DELETED: 'preferences_deleted',
     EPHEMERAL_MESSAGE: 'ephemeral_message',
     STATUS_CHANGED: 'status_change',
+    PING: 'ping',
+    PONG: 'pong',
     HELLO: 'hello',
     WEBRTC: 'webrtc',
     REACTION_ADDED: 'reaction_added',
@@ -100,5 +102,9 @@ const WebsocketEvents = {
     GROUP_DISSOCIATED_TO_TEAM: 'received_group_not_associated_to_team',
     GROUP_ASSOCIATED_TO_CHANNEL: 'received_group_associated_to_channel',
     GROUP_DISSOCIATED_TO_CHANNEL: 'received_group_not_associated_to_channel',
+    CHANNEL_BOOKMARK_CREATED: 'channel_bookmark_created',
+    CHANNEL_BOOKMARK_UPDATED: 'channel_bookmark_updated',
+    CHANNEL_BOOKMARK_SORTED: 'channel_bookmark_sorted',
+    CHANNEL_BOOKMARK_DELETED: 'channel_bookmark_deleted',
 };
 export default WebsocketEvents;

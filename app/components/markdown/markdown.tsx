@@ -5,17 +5,34 @@ import {useManagedConfig} from '@mattermost/react-native-emm';
 import {Parser, Node} from 'commonmark';
 import Renderer from 'commonmark-react-renderer';
 import React, {type ReactElement, useMemo, useRef} from 'react';
-import {Dimensions, type GestureResponderEvent, Platform, type StyleProp, StyleSheet, Text, type TextStyle, View, type ViewStyle} from 'react-native';
+import {
+    Dimensions,
+    type GestureResponderEvent,
+    Platform,
+    type StyleProp,
+    StyleSheet,
+    Text,
+    type TextStyle,
+    View,
+    type ViewStyle,
+} from 'react-native';
 
 import CompassIcon from '@components/compass_icon';
 import Emoji from '@components/emoji';
 import FormattedText from '@components/formatted_text';
+import {logError} from '@utils/log';
 import {computeTextStyle} from '@utils/markdown';
-import {blendColors, changeOpacity, concatStyles, makeStyleSheetFromTheme} from '@utils/theme';
+import {
+    blendColors,
+    changeOpacity,
+    concatStyles,
+    makeStyleSheetFromTheme,
+} from '@utils/theme';
+import {typography} from '@utils/typography';
 import {getScheme} from '@utils/url';
 
 import AtMention from './at_mention';
-import ChannelMention, {type ChannelMentions} from './channel_mention';
+import ChannelMention from './channel_mention';
 import Hashtag from './hashtag';
 import MarkdownBlockQuote from './markdown_block_quote';
 import MarkdownCodeBlock from './markdown_code_block';
@@ -26,14 +43,36 @@ import MarkdownLink from './markdown_link';
 import MarkdownList from './markdown_list';
 import MarkdownListItem from './markdown_list_item';
 import MarkdownTable from './markdown_table';
-import MarkdownTableCell, {type MarkdownTableCellProps} from './markdown_table_cell';
+import MarkdownTableCell, {
+    type MarkdownTableCellProps,
+} from './markdown_table_cell';
 import MarkdownTableImage from './markdown_table_image';
-import MarkdownTableRow, {type MarkdownTableRowProps} from './markdown_table_row';
-import {addListItemIndices, combineTextNodes, highlightMentions, highlightWithoutNotification, highlightSearchPatterns, parseTaskLists, pullOutImages} from './transform';
+import MarkdownTableRow, {
+    type MarkdownTableRowProps,
+} from './markdown_table_row';
+import {
+    addListItemIndices,
+    combineTextNodes,
+    highlightMentions,
+    highlightWithoutNotification,
+    highlightSearchPatterns,
+    parseTaskLists,
+    pullOutImages,
+} from './transform';
 
+import type {ChannelMentions} from './channel_mention/channel_mention';
 import type {
-    MarkdownAtMentionRenderer, MarkdownBaseRenderer, MarkdownBlockStyles, MarkdownChannelMentionRenderer,
-    MarkdownEmojiRenderer, MarkdownImageRenderer, MarkdownLatexRenderer, MarkdownTextStyles, SearchPattern, UserMentionKey, HighlightWithoutNotificationKey,
+    MarkdownAtMentionRenderer,
+    MarkdownBaseRenderer,
+    MarkdownBlockStyles,
+    MarkdownChannelMentionRenderer,
+    MarkdownEmojiRenderer,
+    MarkdownImageRenderer,
+    MarkdownLatexRenderer,
+    MarkdownTextStyles,
+    SearchPattern,
+    UserMentionKey,
+    HighlightWithoutNotificationKey,
 } from '@typings/global/markdown';
 
 type MarkdownProps = {
@@ -74,7 +113,7 @@ type MarkdownProps = {
     value?: string;
     onLinkLongPress?: (url?: string) => void;
     isUnsafeLinksPost?: boolean;
-}
+};
 
 const getStyleSheet = makeStyleSheetFromTheme((theme) => {
     // Android has trouble giving text transparency depending on how it's nested,
@@ -85,7 +124,11 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
     });
     const editedColor = Platform.select({
         ios: theme.centerChannelColor,
-        android: blendColors(theme.centerChannelBg, theme.centerChannelColor, 0.3),
+        android: blendColors(
+            theme.centerChannelBg,
+            theme.centerChannelColor,
+            0.3,
+        ),
     });
 
     return {
@@ -97,6 +140,10 @@ const getStyleSheet = makeStyleSheetFromTheme((theme) => {
         editedIndicatorText: {
             color: editedColor,
             opacity: editedOpacity,
+        },
+        errorMessage: {
+            color: theme.errorTextColor,
+            ...typography('Body', 100),
         },
         maxNodesWarning: {
             color: theme.errorTextColor,
@@ -130,14 +177,43 @@ const getExtraPropsForNode = (node: any) => {
 };
 
 const Markdown = ({
-                      autolinkedUrlSchemes, baseTextStyle, blockStyles, channelId, channelMentions,
-                      disableAtChannelMentionHighlight, disableAtMentions, disableBlockQuote, disableChannelLink,
-                      disableCodeBlock, disableGallery, disableHashtags, disableHeading, disableTables,
-                      enableInlineLatex, enableLatex, maxNodes,
-                      imagesMetadata, isEdited, isReplyPost, isSearchResult, layoutHeight, layoutWidth,
-                      location, mentionKeys, highlightKeys, minimumHashtagLength = 3, onPostPress, postId, searchPatterns,
-                      textStyles = {}, theme, value = '', baseParagraphStyle, onLinkLongPress, isUnsafeLinksPost,
-                  }: MarkdownProps) => {
+    autolinkedUrlSchemes,
+    baseTextStyle,
+    blockStyles,
+    channelId,
+    channelMentions,
+    disableAtChannelMentionHighlight,
+    disableAtMentions,
+    disableBlockQuote,
+    disableChannelLink,
+    disableCodeBlock,
+    disableGallery,
+    disableHashtags,
+    disableHeading,
+    disableTables,
+    enableInlineLatex,
+    enableLatex,
+    maxNodes,
+    imagesMetadata,
+    isEdited,
+    isReplyPost,
+    isSearchResult,
+    layoutHeight,
+    layoutWidth,
+    location,
+    mentionKeys,
+    highlightKeys,
+    minimumHashtagLength = 3,
+    onPostPress,
+    postId,
+    searchPatterns,
+    textStyles = {},
+    theme,
+    value = '',
+    baseParagraphStyle,
+    onLinkLongPress,
+    isUnsafeLinksPost,
+}: MarkdownProps) => {
     const style = getStyleSheet(theme);
     const managedConfig = useManagedConfig<ManagedConfig>();
 
@@ -146,18 +222,28 @@ const Markdown = ({
         return !scheme || autolinkedUrlSchemes?.indexOf(scheme) !== -1;
     };
 
-    const renderAtMention = ({context, mentionName}: MarkdownAtMentionRenderer) => {
+    const renderAtMention = ({
+        context,
+        mentionName,
+    }: MarkdownAtMentionRenderer) => {
         if (disableAtMentions) {
             return renderText({context, literal: `@${mentionName}`});
         }
-        const computedStyles = StyleSheet.flatten(computeTextStyle(textStyles, baseTextStyle, context));
+        const computedStyles = StyleSheet.flatten(
+            computeTextStyle(textStyles, baseTextStyle, context),
+        );
         const {fontFamily, fontSize, fontWeight} = computedStyles;
 
         return (
             <AtMention
                 channelId={channelId}
-                disableAtChannelMentionHighlight={disableAtChannelMentionHighlight}
-                mentionStyle={[textStyles.mention, {fontSize, fontWeight, fontFamily}]}
+                disableAtChannelMentionHighlight={
+                    disableAtChannelMentionHighlight
+                }
+                mentionStyle={[
+                    textStyles.mention,
+                    {fontSize, fontWeight, fontFamily},
+                ]}
                 textStyle={[computedStyles, style.atMentionOpacity]}
                 isSearchResult={isSearchResult}
                 location={location}
@@ -184,10 +270,13 @@ const Markdown = ({
     };
 
     const renderBreak = () => {
-        return <Text testID='markdown_break'>{'\n'}</Text>;
+        return <Text testID="markdown_break">{'\n'}</Text>;
     };
 
-    const renderChannelLink = ({context, channelName}: MarkdownChannelMentionRenderer) => {
+    const renderChannelLink = ({
+        context,
+        channelName,
+    }: MarkdownChannelMentionRenderer) => {
         if (disableChannelLink || isUnsafeLinksPost) {
             return renderText({context, literal: `~${channelName}`});
         }
@@ -204,13 +293,14 @@ const Markdown = ({
 
     const renderCheckbox = ({isChecked}: {isChecked: boolean}) => {
         return (
-            <Text testID='markdown_checkbox'>
+            <Text testID="markdown_checkbox">
                 <CompassIcon
-                    name={isChecked ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                    name={
+                        isChecked ? 'checkbox-marked' : 'checkbox-blank-outline'
+                    }
                     size={16}
                     color={changeOpacity(theme.centerChannelColor, 0.56)}
-                />
-                {' '}
+                />{' '}
             </Text>
         );
     };
@@ -224,12 +314,7 @@ const Markdown = ({
         const content = props.literal.replace(/\n$/, '');
 
         if (enableLatex && !isUnsafeLinksPost && props.language === 'latex') {
-            return (
-                <MarkdownLatexCodeBlock
-                    content={content}
-                    theme={theme}
-                />
-            );
+            return <MarkdownLatexCodeBlock content={content} theme={theme} />;
         }
 
         return (
@@ -245,8 +330,12 @@ const Markdown = ({
         const {code} = textStyles;
         return (
             <Text
-                style={computeTextStyle(textStyles, [baseTextStyle, code], context)}
-                testID='markdown_code_span'
+                style={computeTextStyle(
+                    textStyles,
+                    [baseTextStyle, code],
+                    context,
+                )}
+                testID="markdown_code_span"
             >
                 {literal}
             </Text>
@@ -262,31 +351,38 @@ const Markdown = ({
         }
 
         return (
-            <Text
-                style={styles}
-                testID='edited_indicator'
-            >
+            <Text style={styles} testID="edited_indicator">
                 {spacer}
                 <FormattedText
-                    id='post_message_view.edited'
-                    defaultMessage='(edited)'
+                    id="post_message_view.edited"
+                    defaultMessage="(edited)"
                 />
             </Text>
         );
     };
 
-    const renderEmoji = ({context, emojiName, literal}: MarkdownEmojiRenderer) => {
+    const renderEmoji = ({
+        context,
+        emojiName,
+        literal,
+    }: MarkdownEmojiRenderer) => {
         return (
             <Emoji
                 emojiName={emojiName}
                 literal={literal}
-                testID='markdown_emoji'
+                testID="markdown_emoji"
                 textStyle={computeTextStyle(textStyles, baseTextStyle, context)}
             />
         );
     };
 
-    const renderHashtag = ({context, hashtag}: {context: string[]; hashtag: string}) => {
+    const renderHashtag = ({
+        context,
+        hashtag,
+    }: {
+        context: string[];
+        hashtag: string;
+    }) => {
         if (disableHashtags || isUnsafeLinksPost) {
             return renderText({context, literal: `#${hashtag}`});
         }
@@ -297,40 +393,33 @@ const Markdown = ({
             linkStyle.push(textStyles[context[headingIndex]]);
         }
 
-        return (
-            <Hashtag
-                hashtag={hashtag}
-                linkStyle={linkStyle}
-            />
-        );
+        return <Hashtag hashtag={hashtag} linkStyle={linkStyle} />;
     };
 
-    const renderHeading = ({children, level}: {children: ReactElement; level: string}) => {
+    const renderHeading = ({
+        children,
+        level,
+    }: {
+        children: ReactElement;
+        level: string;
+    }) => {
         if (disableHeading) {
             return (
-                <Text
-                    style={style.bold}
-                    testID='markdown_heading'
-                >
+                <Text style={style.bold} testID="markdown_heading">
                     {children}
                 </Text>
             );
         }
 
-        const containerStyle = [
-            style.block,
-            textStyles[`heading${level}`],
-        ];
+        const containerStyle = [style.block, textStyles[`heading${level}`]];
         const textStyle = textStyles[`heading${level}Text`];
 
         return (
             <View
-                style={containerStyle}
-                testID='markdown_heading'
+                style={containerStyle as StyleProp<ViewStyle>}
+                testID="markdown_heading"
             >
-                <Text style={textStyle}>
-                    {children}
-                </Text>
+                <Text style={textStyle}>{children}</Text>
             </View>
         );
     };
@@ -340,10 +429,7 @@ const Markdown = ({
 
         if (props.isBlock) {
             rendered = (
-                <View
-                    style={style.block}
-                    testID='markdown_html'
-                >
+                <View style={style.block} testID="markdown_html">
                     {rendered}
                 </View>
             );
@@ -352,16 +438,26 @@ const Markdown = ({
         return rendered;
     };
 
-    const renderImage = ({linkDestination, context, src, size}: MarkdownImageRenderer) => {
+    const renderImage = ({
+        linkDestination,
+        context,
+        src,
+        size,
+    }: MarkdownImageRenderer) => {
         if (!imagesMetadata || isUnsafeLinksPost) {
             return null;
         }
+
+        const isInsideLink = context.indexOf('link') !== -1;
+
+        const disableInteraction =
+            (disableGallery ?? Boolean(!location)) || isInsideLink;
 
         if (context.indexOf('table') !== -1) {
             // We have enough problems rendering images as is, so just render a link inside of a table
             return (
                 <MarkdownTableImage
-                    disabled={disableGallery ?? Boolean(!location)}
+                    disabled={disableInteraction}
                     imagesMetadata={imagesMetadata}
                     location={location}
                     postId={postId!}
@@ -372,8 +468,11 @@ const Markdown = ({
 
         return (
             <MarkdownImage
-                disabled={disableGallery ?? Boolean(!location)}
-                errorTextStyle={[computeTextStyle(textStyles, baseTextStyle, context), textStyles.error]}
+                disabled={disableInteraction}
+                errorTextStyle={[
+                    computeTextStyle(textStyles, baseTextStyle, context),
+                    textStyles.error,
+                ]}
                 layoutHeight={layoutHeight}
                 layoutWidth={layoutWidth}
                 linkDestination={linkDestination}
@@ -403,15 +502,19 @@ const Markdown = ({
         );
     };
 
-    const renderLink = ({children, href}: {children: ReactElement; href: string}) => {
+    const renderLink = ({
+        children,
+        href,
+    }: {
+        children: ReactElement;
+        href: string;
+    }) => {
         if (isUnsafeLinksPost) {
             return renderText({context: [], literal: href});
         }
+
         return (
-            <MarkdownLink
-                href={href}
-                onLinkLongPress={onLinkLongPress}
-            >
+            <MarkdownLink href={href} onLinkLongPress={onLinkLongPress}>
                 {children}
             </MarkdownLink>
         );
@@ -443,7 +546,13 @@ const Markdown = ({
         );
     };
 
-    const renderParagraph = ({children, first}: {children: ReactElement[]; first: boolean}) => {
+    const renderParagraph = ({
+        children,
+        first,
+    }: {
+        children: ReactElement[];
+        first: boolean;
+    }) => {
         if (!children || children.length === 0) {
             return null;
         }
@@ -454,48 +563,45 @@ const Markdown = ({
         }
 
         return (
-            <View
-                style={blockStyle}
-                testID='markdown_paragraph'
-            >
-                <Text style={baseParagraphStyle}>
-                    {children}
-                </Text>
+            <View style={blockStyle} testID="markdown_paragraph">
+                <Text style={baseParagraphStyle}>{children}</Text>
             </View>
         );
     };
 
-    const renderTable = ({children, numColumns}: {children: ReactElement; numColumns: number}) => {
+    const renderTable = ({
+        children,
+        numColumns,
+    }: {
+        children: ReactElement;
+        numColumns: number;
+    }) => {
         if (disableTables) {
             return null;
         }
         return (
-            <MarkdownTable
-                numColumns={numColumns}
-                theme={theme}
-            >
+            <MarkdownTable numColumns={numColumns} theme={theme}>
                 {children}
             </MarkdownTable>
         );
     };
 
     const renderTableCell = (args: MarkdownTableCellProps) => {
-        return <MarkdownTableCell {...args}/>;
+        return <MarkdownTableCell {...args} />;
     };
 
     const renderTableRow = (args: MarkdownTableRowProps) => {
-        return <MarkdownTableRow {...args}/>;
+        return <MarkdownTableRow {...args} />;
     };
 
     const renderText = ({context, literal}: MarkdownBaseRenderer) => {
-        const selectable = (managedConfig.copyAndPasteProtection !== 'true') && context.includes('table_cell');
+        const selectable =
+            managedConfig.copyAndPasteProtection !== 'true' &&
+            context.includes('table_cell');
         if (context.indexOf('image') !== -1) {
             // If this text is displayed, it will be styled by the image component
             return (
-                <Text
-                    testID='markdown_text'
-                    selectable={selectable}
-                >
+                <Text testID="markdown_text" selectable={selectable}>
                     {literal}
                 </Text>
             );
@@ -504,21 +610,23 @@ const Markdown = ({
         // Construct the text style based off of the parents of this node since RN's inheritance is limited
         let styles;
         if (disableHeading) {
-            styles = computeTextStyle(textStyles, baseTextStyle, context.filter((c) => !c.startsWith('heading')));
+            styles = computeTextStyle(
+                textStyles,
+                baseTextStyle,
+                context.filter((c) => !c.startsWith('heading')),
+            );
         } else {
             styles = computeTextStyle(textStyles, baseTextStyle, context);
         }
 
         if (context.includes('mention_highlight')) {
-            styles = concatStyles(styles, {backgroundColor: theme.mentionHighlightBg});
+            styles = concatStyles(styles, {
+                backgroundColor: theme.mentionHighlightBg,
+            });
         }
 
         return (
-            <Text
-                testID='markdown_text'
-                style={styles}
-                selectable={selectable}
-            >
+            <Text testID="markdown_text" style={styles} selectable={selectable}>
                 {literal}
             </Text>
         );
@@ -528,7 +636,7 @@ const Markdown = ({
         return (
             <View
                 style={blockStyles?.horizontalRule}
-                testID='markdown_thematic_break'
+                testID="markdown_thematic_break"
             />
         );
     };
@@ -538,10 +646,10 @@ const Markdown = ({
 
         return (
             <FormattedText
-                id='markdown.max_nodes.error'
-                defaultMessage='This message is too long to by shown fully on a mobile device. Please view it on desktop or contact an admin to increase this limit.'
+                id="markdown.max_nodes.error"
+                defaultMessage="This message is too long to by shown fully on a mobile device. Please view it on desktop or contact an admin to increase this limit."
                 style={styles}
-                testID='max_nodes_warning'
+                testID="max_nodes_warning"
             />
         );
     };
@@ -599,48 +707,81 @@ const Markdown = ({
         });
     };
 
-    const parser = useRef(new Parser({urlFilter, minimumHashtagLength})).current;
+    const parser = useRef(
+        new Parser({urlFilter, minimumHashtagLength}),
+    ).current;
     const renderer = useMemo(createRenderer, [theme, textStyles]);
-    let str = value.toString();
 
-    str = str.split('\n').map(line => {
-        if (line.trim() === '+') {
-            return '&plus;';
+    const errorLogged = useRef(false);
+
+    let ast;
+    try {
+        ast = parser.parse(value.toString());
+
+        ast = combineTextNodes(ast);
+        ast = addListItemIndices(ast);
+        ast = pullOutImages(ast);
+        ast = parseTaskLists(ast);
+        if (mentionKeys) {
+            ast = highlightMentions(ast, mentionKeys);
         }
-        if (line.trim() === '-') {
-            return '&minus;';
+        if (highlightKeys) {
+            ast = highlightWithoutNotification(ast, highlightKeys);
         }
-        return line;
-    }).join('\n');
-
-    let ast = parser.parse(str);
-
-    ast = combineTextNodes(ast);
-    ast = addListItemIndices(ast);
-    ast = pullOutImages(ast);
-    ast = parseTaskLists(ast);
-    if (mentionKeys) {
-        ast = highlightMentions(ast, mentionKeys);
-    }
-    if (highlightKeys) {
-        ast = highlightWithoutNotification(ast, highlightKeys);
-    }
-    if (searchPatterns) {
-        ast = highlightSearchPatterns(ast, searchPatterns);
-    }
-    if (isEdited) {
-        const editIndicatorNode = new Node('edited_indicator');
-        if (ast.lastChild && ['heading', 'paragraph'].includes(ast.lastChild.type)) {
-            ast.appendChild(editIndicatorNode);
-        } else {
-            const node = new Node('paragraph');
-            node.appendChild(editIndicatorNode);
-
-            ast.appendChild(node);
+        if (searchPatterns) {
+            ast = highlightSearchPatterns(ast, searchPatterns);
         }
+
+        if (isEdited) {
+            const editIndicatorNode = new Node('edited_indicator');
+            if (
+                ast.lastChild &&
+                ['heading', 'paragraph'].includes(ast.lastChild.type)
+            ) {
+                ast.appendChild(editIndicatorNode);
+            } else {
+                const node = new Node('paragraph');
+                node.appendChild(editIndicatorNode);
+
+                ast.appendChild(node);
+            }
+        }
+    } catch (e) {
+        if (!errorLogged.current) {
+            logError('An error occurred while parsing Markdown', e);
+
+            errorLogged.current = true;
+        }
+
+        return (
+            <FormattedText
+                id="markdown.parse_error"
+                defaultMessage="An error occurred while parsing this text"
+                style={style.errorMessage}
+            />
+        );
     }
 
-    return renderer.render(ast) as JSX.Element;
+    let output;
+    try {
+        output = renderer.render(ast);
+    } catch (e) {
+        if (!errorLogged.current) {
+            logError('An error occurred while rendering Markdown', e);
+
+            errorLogged.current = true;
+        }
+
+        return (
+            <FormattedText
+                id="markdown.render_error"
+                defaultMessage="An error occurred while rendering this text"
+                style={style.errorMessage}
+            />
+        );
+    }
+
+    return output;
 };
 
 export default Markdown;

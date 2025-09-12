@@ -30,6 +30,7 @@ import {
     setSpeakerPhone,
 } from '@calls/state';
 import {type AudioDevice, type Call, type CallSession, type CallsConnection, EndCallReturn} from '@calls/types/calls';
+import {areGroupCallsAllowed} from '@calls/utils';
 import {General, Preferences} from '@constants';
 import Calls from '@constants/calls';
 import DatabaseManager from '@database/manager';
@@ -52,7 +53,7 @@ import type {IntlShape} from 'react-intl';
 let connection: CallsConnection | null = null;
 export const getConnectionForTesting = () => connection;
 
-export const loadConfig = async (serverUrl: string, force = false) => {
+export const loadConfig = async (serverUrl: string, force = false, groupLabel?: RequestGroupLabel) => {
     const now = Date.now();
     const config = getCallsConfig(serverUrl);
 
@@ -65,7 +66,7 @@ export const loadConfig = async (serverUrl: string, force = false) => {
 
     try {
         const client = NetworkManager.getClient(serverUrl);
-        const configs = await Promise.all([client.getCallsConfig(), client.getVersion()]);
+        const configs = await Promise.all([client.getCallsConfig(groupLabel), client.getVersion(groupLabel)]);
         const nextConfig = {...configs[0], version: configs[1], last_retrieved_at: now};
         setConfig(serverUrl, nextConfig);
         return {data: nextConfig};
@@ -76,11 +77,11 @@ export const loadConfig = async (serverUrl: string, force = false) => {
     }
 };
 
-export const loadCalls = async (serverUrl: string, userId: string) => {
+export const loadCalls = async (serverUrl: string, userId: string, groupLabel?: RequestGroupLabel) => {
     let resp: CallChannelState[] = [];
     try {
         const client = NetworkManager.getClient(serverUrl);
-        resp = await client.getCalls() || [];
+        resp = await client.getCalls(groupLabel) || [];
     } catch (error) {
         logDebug('error on loadCalls', getFullErrorMessage(error));
         await forceLogoutIfNecessary(serverUrl, error);
@@ -103,7 +104,7 @@ export const loadCalls = async (serverUrl: string, userId: string) => {
 
     // Batch load user models async because we'll need them later
     if (ids.size > 0) {
-        fetchUsersByIds(serverUrl, Array.from(ids));
+        fetchUsersByIds(serverUrl, Array.from(ids), false, groupLabel);
     }
 
     setCalls(serverUrl, userId, callsResults, enabledChannels);
@@ -191,11 +192,11 @@ export const createCallAndAddToIds = (channelId: string, call: CallState, ids?: 
     return convertedCall;
 };
 
-export const loadConfigAndCalls = async (serverUrl: string, userId: string) => {
+export const loadConfigAndCalls = async (serverUrl: string, userId: string, groupLabel?: RequestGroupLabel) => {
     const res = await checkIsCallsPluginEnabled(serverUrl);
     if (res.data) {
-        loadConfig(serverUrl, true);
-        loadCalls(serverUrl, userId);
+        loadConfig(serverUrl, true, groupLabel);
+        loadCalls(serverUrl, userId, groupLabel);
     }
 };
 
@@ -493,7 +494,7 @@ export const dismissIncomingCall = async (serverUrl: string, channelId: string) 
 };
 
 // handleCallsSlashCommand will return true if the slash command was handled
-export const handleCallsSlashCommand = async (value: string, serverUrl: string, channelId: string, rootId: string, currentUserId: string, intl: IntlShape):
+export const handleCallsSlashCommand = async (value: string, serverUrl: string, channelId: string, channelType: string, rootId: string, currentUserId: string, intl: IntlShape):
     Promise<{ handled?: boolean; error?: string }> => {
     const tokens = value.split(' ');
     if (tokens.length < 2 || tokens[0] !== '/call') {
@@ -505,6 +506,15 @@ export const handleCallsSlashCommand = async (value: string, serverUrl: string, 
             await handleEndCall(serverUrl, channelId, currentUserId, intl);
             return {handled: true};
         case 'start': {
+            if (!areGroupCallsAllowed(getCallsConfig(serverUrl)) && channelType !== General.DM_CHANNEL) {
+                return {
+                    error: intl.formatMessage({
+                        id: 'mobile.calls_group_calls_not_available',
+                        defaultMessage: 'Calls are only available in DM channels.',
+                    }),
+                };
+            }
+
             if (getChannelsWithCalls(serverUrl)[channelId]) {
                 return {
                     error: intl.formatMessage({
@@ -518,13 +528,22 @@ export const handleCallsSlashCommand = async (value: string, serverUrl: string, 
             return {handled: true};
         }
         case 'join': {
+            if (!areGroupCallsAllowed(getCallsConfig(serverUrl)) && channelType !== General.DM_CHANNEL) {
+                return {
+                    error: intl.formatMessage({
+                        id: 'mobile.calls_group_calls_not_available',
+                        defaultMessage: 'Calls are only available in DM channels.',
+                    }),
+                };
+            }
+
             const title = tokens.length > 2 ? tokens.slice(2).join(' ') : undefined;
             await leaveAndJoinWithAlert(intl, serverUrl, channelId, title, rootId);
             return {handled: true};
         }
         case 'leave':
             if (getCurrentCall()?.channelId === channelId) {
-                await leaveCall();
+                leaveCall();
                 return {handled: true};
             }
             return {
@@ -650,7 +669,7 @@ const handleEndCall = async (serverUrl: string, channelId: string, currentUserId
 export const hostMake = async (serverUrl: string, callId: string, newHostId: string) => {
     try {
         const client = NetworkManager.getClient(serverUrl);
-        return client.hostMake(callId, newHostId);
+        return await client.hostMake(callId, newHostId);
     } catch (error) {
         logDebug('error on hostMake', getFullErrorMessage(error));
         await forceLogoutIfNecessary(serverUrl, error);
@@ -661,7 +680,7 @@ export const hostMake = async (serverUrl: string, callId: string, newHostId: str
 export const hostMuteSession = async (serverUrl: string, callId: string, sessionId: string) => {
     try {
         const client = NetworkManager.getClient(serverUrl);
-        return client.hostMute(callId, sessionId);
+        return await client.hostMute(callId, sessionId);
     } catch (error) {
         logDebug('error on hostMute', getFullErrorMessage(error));
         await forceLogoutIfNecessary(serverUrl, error);
@@ -672,7 +691,7 @@ export const hostMuteSession = async (serverUrl: string, callId: string, session
 export const hostMuteOthers = async (serverUrl: string, callId: string) => {
     try {
         const client = NetworkManager.getClient(serverUrl);
-        return client.hostMuteOthers(callId);
+        return await client.hostMuteOthers(callId);
     } catch (error) {
         logDebug('error on hostMuteOthers', getFullErrorMessage(error));
         await forceLogoutIfNecessary(serverUrl, error);
@@ -683,7 +702,7 @@ export const hostMuteOthers = async (serverUrl: string, callId: string) => {
 export const hostStopScreenshare = async (serverUrl: string, callId: string, sessionId: string) => {
     try {
         const client = NetworkManager.getClient(serverUrl);
-        return client.hostScreenOff(callId, sessionId);
+        return await client.hostScreenOff(callId, sessionId);
     } catch (error) {
         logDebug('error on hostStopScreenshare', getFullErrorMessage(error));
         await forceLogoutIfNecessary(serverUrl, error);
@@ -694,7 +713,7 @@ export const hostStopScreenshare = async (serverUrl: string, callId: string, ses
 export const hostLowerHand = async (serverUrl: string, callId: string, sessionId: string) => {
     try {
         const client = NetworkManager.getClient(serverUrl);
-        return client.hostLowerHand(callId, sessionId);
+        return await client.hostLowerHand(callId, sessionId);
     } catch (error) {
         logDebug('error on hostLowerHand', getFullErrorMessage(error));
         await forceLogoutIfNecessary(serverUrl, error);
@@ -705,7 +724,7 @@ export const hostLowerHand = async (serverUrl: string, callId: string, sessionId
 export const hostRemove = async (serverUrl: string, callId: string, sessionId: string) => {
     try {
         const client = NetworkManager.getClient(serverUrl);
-        return client.hostRemove(callId, sessionId);
+        return await client.hostRemove(callId, sessionId);
     } catch (error) {
         logDebug('error on hostRemove', getFullErrorMessage(error));
         await forceLogoutIfNecessary(serverUrl, error);

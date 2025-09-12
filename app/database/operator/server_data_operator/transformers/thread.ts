@@ -33,8 +33,9 @@ export const transformThreadRecord = ({action, database, value}: TransformerArgs
     const fieldsMapper = (thread: ThreadModel) => {
         thread._raw.id = isCreateAction ? (raw?.id ?? thread.id) : record.id;
 
-        // When post is individually fetched, we get last_reply_at as 0, so we use the record's value
-        thread.lastReplyAt = raw.last_reply_at || record?.lastReplyAt;
+        // When post is individually fetched, we get last_reply_at as 0, so we use the record's value.
+        // If there is no reply at, we default to the post's create_at
+        thread.lastReplyAt = raw.last_reply_at || record?.lastReplyAt || raw.post.create_at;
 
         thread.lastViewedAt = raw.last_viewed_at ?? record?.lastViewedAt ?? 0;
         thread.replyCount = raw.reply_count;
@@ -63,9 +64,12 @@ export const transformThreadRecord = ({action, database, value}: TransformerArgs
  */
 export const transformThreadParticipantRecord = ({action, database, value}: TransformerArgs): Promise<ThreadParticipantModel> => {
     const raw = value.raw as ThreadParticipant;
+    const record = value.record as ThreadParticipantModel;
+    const isCreateAction = action === OperationType.CREATE;
 
     // id of participant comes from server response
     const fieldsMapper = (participant: ThreadParticipantModel) => {
+        participant._raw.id = isCreateAction ? `${raw.thread_id}-${raw.id}` : record.id;
         participant.threadId = raw.thread_id;
         participant.userId = raw.id;
     };
@@ -81,8 +85,11 @@ export const transformThreadParticipantRecord = ({action, database, value}: Tran
 
 export const transformThreadInTeamRecord = ({action, database, value}: TransformerArgs): Promise<ThreadInTeamModel> => {
     const raw = value.raw as ThreadInTeam;
+    const record = value.record as ThreadInTeamModel;
+    const isCreateAction = action === OperationType.CREATE;
 
     const fieldsMapper = (threadInTeam: ThreadInTeamModel) => {
+        threadInTeam._raw.id = isCreateAction ? `${raw.thread_id}-${raw.team_id}` : record.id;
         threadInTeam.threadId = raw.thread_id;
         threadInTeam.teamId = raw.team_id;
     };

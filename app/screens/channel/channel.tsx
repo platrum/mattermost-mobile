@@ -1,8 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import {type KeyboardTrackingViewRef} from 'libraries/@mattermost/keyboard-tracker/src';
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 import {type LayoutChangeEvent, StyleSheet, View} from 'react-native';
 import {type Edge, SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 
@@ -10,14 +9,13 @@ import {storeLastViewedChannelIdAndServer, removeLastViewedChannelIdAndServer} f
 import FloatingCallContainer from '@calls/components/floating_call_container';
 import FreezeScreen from '@components/freeze_screen';
 import PostDraft from '@components/post_draft';
-import {Screens} from '@constants';
-import {ACCESSORIES_CONTAINER_NATIVE_ID} from '@constants/post_draft';
+import {ExtraKeyboardProvider} from '@context/extra_keyboard';
 import useAndroidHardwareBackHandler from '@hooks/android_back_handler';
 import {useChannelSwitch} from '@hooks/channel_switch';
 import {useIsTablet} from '@hooks/device';
 import {useDefaultHeaderHeight} from '@hooks/header';
-import {useKeyboardTrackingPaused} from '@hooks/keyboard_tracking';
 import {useTeamSwitch} from '@hooks/team_switch';
+import SecurityManager from '@managers/security_manager';
 import {popTopScreen} from '@screens/navigation';
 import EphemeralStore from '@store/ephemeral_store';
 
@@ -34,16 +32,17 @@ type ChannelProps = {
     showJoinCallBanner: boolean;
     isInACall: boolean;
     isCallsEnabledInChannel: boolean;
+    groupCallsAllowed: boolean;
     showIncomingCalls: boolean;
     isTabletView?: boolean;
     dismissedGMasDMNotice: PreferenceModel[];
     currentUserId: string;
     channelType: ChannelType;
     hasGMasDMFeature: boolean;
+    includeBookmarkBar?: boolean;
 };
 
 const edges: Edge[] = ['left', 'right'];
-const trackKeyboardForScreens = [Screens.HOME, Screens.CHANNEL];
 
 const styles = StyleSheet.create({
     flex: {
@@ -57,12 +56,14 @@ const Channel = ({
     showJoinCallBanner,
     isInACall,
     isCallsEnabledInChannel,
+    groupCallsAllowed,
     showIncomingCalls,
     isTabletView,
     dismissedGMasDMNotice,
     channelType,
     currentUserId,
     hasGMasDMFeature,
+    includeBookmarkBar,
 }: ChannelProps) => {
     useGMasDMNotice(currentUserId, channelType, dismissedGMasDMNotice, hasGMasDMFeature);
     const isTablet = useIsTablet();
@@ -71,14 +72,12 @@ const Channel = ({
     const switchingTeam = useTeamSwitch();
     const switchingChannels = useChannelSwitch();
     const defaultHeight = useDefaultHeaderHeight();
-    const postDraftRef = useRef<KeyboardTrackingViewRef>(null);
     const [containerHeight, setContainerHeight] = useState(0);
     const shouldRender = !switchingTeam && !switchingChannels && shouldRenderPosts && Boolean(channelId);
     const handleBack = useCallback(() => {
         popTopScreen(componentId);
     }, [componentId]);
 
-    useKeyboardTrackingPaused(postDraftRef, channelId, trackKeyboardForScreens);
     useAndroidHardwareBackHandler(componentId, handleBack);
 
     const marginTop = defaultHeight + (isTablet ? 0 : -insets.top);
@@ -118,15 +117,18 @@ const Channel = ({
                 edges={edges}
                 testID='channel.screen'
                 onLayout={onLayout}
+                nativeID={componentId ? SecurityManager.getShieldScreenId(componentId) : undefined}
             >
                 <ChannelHeader
                     channelId={channelId}
                     componentId={componentId}
                     callsEnabledInChannel={isCallsEnabledInChannel}
+                    groupCallsAllowed={groupCallsAllowed}
                     isTabletView={isTabletView}
+                    shouldRenderBookmarks={shouldRender}
                 />
                 {shouldRender &&
-                <>
+                <ExtraKeyboardProvider>
                     <View style={[styles.flex, {marginTop}]}>
                         <ChannelPostList
                             channelId={channelId}
@@ -135,22 +137,20 @@ const Channel = ({
                     </View>
                     <PostDraft
                         channelId={channelId}
-                        keyboardTracker={postDraftRef}
-                        scrollViewNativeID={channelId}
-                        accessoriesContainerID={ACCESSORIES_CONTAINER_NATIVE_ID}
                         testID='channel.post_draft'
                         containerHeight={containerHeight}
                         isChannelScreen={true}
                         canShowPostPriority={true}
                     />
-                </>
+                </ExtraKeyboardProvider>
                 }
-                {showFloatingCallContainer &&
+                {showFloatingCallContainer && shouldRender &&
                     <FloatingCallContainer
                         channelId={channelId}
                         showJoinCallBanner={showJoinCallBanner}
                         showIncomingCalls={showIncomingCalls}
                         isInACall={isInACall}
+                        includeBookmarkBar={includeBookmarkBar}
                     />
                 }
             </SafeAreaView>

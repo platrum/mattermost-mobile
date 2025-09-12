@@ -71,7 +71,7 @@ type Post = {
     message_source?: string;
     type: PostType;
     participants?: null | UserProfile[]|string[];
-    props: Record<string, any>;
+    props: Record<string, unknown> | undefined;
     hashtags: string;
     pending_post_id: string;
     reply_count: number;
@@ -107,29 +107,29 @@ type ProcessedPosts = {
 }
 
 type MessageAttachment = {
-    id: number;
-    fallback: string;
-    color: string;
-    pretext: string;
-    author_name: string;
-    author_link: string;
-    author_icon: string;
-    title: string;
-    title_link: string;
-    text: string;
-    fields: MessageAttachmentField[];
-    image_url: string;
-    thumb_url: string;
-    footer: string;
-    footer_icon: string;
-    timestamp: number | string;
+    id?: number;
+    fallback?: string;
+    color?: string;
+    pretext?: string;
+    author_name?: string;
+    author_link?: string;
+    author_icon?: string;
+    title?: string;
+    title_link?: string;
+    text?: string;
+    fields?: MessageAttachmentField[];
+    image_url?: string;
+    thumb_url?: string;
+    footer?: string;
+    footer_icon?: string;
+    timestamp?: number | string;
     actions?: PostAction[];
 };
 
 type MessageAttachmentField = {
-    title: string;
-    value: any;
-    short: boolean;
+    title?: string;
+    value?: any;
+    short?: boolean;
 }
 
 type PostSearchParams = {
