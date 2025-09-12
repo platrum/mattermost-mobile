@@ -21,6 +21,16 @@ class Batcher {
         this.serverUrl = serverUrl;
     }
 
+    private async fetchClientPerformanceSetting() {
+        const database = DatabaseManager.serverDatabases[this.serverUrl]?.database;
+        if (!database) {
+            return false;
+        }
+
+        const value = await getConfigValue(database, 'EnableClientMetrics');
+        return value === 'true';
+    }
+
     private started() {
         return Boolean(this.sendTimeout);
     }
@@ -46,13 +56,7 @@ class Batcher {
         // Empty the batch as soon as possible to avoid race conditions
         this.batch = [];
 
-        const database = DatabaseManager.serverDatabases[this.serverUrl]?.database;
-        if (!database) {
-            return;
-        }
-
-        const clientPerformanceSetting = await getConfigValue(database, 'EnableClientMetrics');
-        if (clientPerformanceSetting !== 'true') {
+        if (!await this.fetchClientPerformanceSetting()) {
             return;
         }
 
@@ -100,4 +104,8 @@ class Batcher {
     }
 }
 
+export const testExports = {
+    MAX_BATCH_SIZE,
+    INTERVAL_TIME,
+};
 export default Batcher;

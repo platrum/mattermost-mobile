@@ -7,20 +7,23 @@ import assert from 'assert';
 
 import {random} from 'lodash';
 import nock from 'nock';
+import {of as of$} from 'rxjs';
 
 import Config from '@assets/config.json';
 import {Client} from '@client/rest';
 import {ActionType} from '@constants';
+import {Ringtone} from '@constants/calls';
 import {SYSTEM_IDENTIFIERS} from '@constants/database';
 import {PUSH_PROXY_STATUS_VERIFIED} from '@constants/push_proxy';
 import DatabaseManager from '@database/manager';
 import {prepareCommonSystemValues} from '@queries/servers/system';
 
 import type {APIClientInterface} from '@mattermost/react-native-network-client';
+import type {Model, Query} from '@nozbe/watermelondb';
 
 const DEFAULT_LOCALE = 'en';
 
-class TestHelper {
+class TestHelperSingleton {
     basicClient: Client | null;
     basicUser: UserProfile | null;
     basicTeam: Team | null;
@@ -429,6 +432,10 @@ class TestHelper {
             mention_keys: '',
             push: 'default',
             push_status: 'away',
+            calls_desktop_sound: 'true',
+            calls_mobile_notification_sound: '',
+            calls_mobile_sound: 'true',
+            calls_notification_sound: '',
         };
     };
 
@@ -453,6 +460,10 @@ class TestHelper {
                 channel: 'true',
                 mention_keys: '',
                 highlight_keys: '',
+                calls_desktop_sound: 'true',
+                calls_mobile_sound: '',
+                calls_notification_sound: Ringtone.Calm,
+                calls_mobile_notification_sound: '',
             },
             last_picture_update: 0,
             position: '',
@@ -722,6 +733,14 @@ class TestHelper {
 
     wait = (time: number) => new Promise((resolve) => setTimeout(resolve, time));
     tick = () => new Promise((r) => setImmediate(r));
+
+    mockQuery = <T extends Model>(returnValue: T | T[]) => {
+        return {
+            fetch: async () => returnValue,
+            observe: of$(returnValue),
+        } as unknown as Query<T>;
+    };
 }
 
-export default new TestHelper();
+const TestHelper = new TestHelperSingleton();
+export default TestHelper;
