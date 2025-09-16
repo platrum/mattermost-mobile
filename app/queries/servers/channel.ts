@@ -633,13 +633,16 @@ export const observeJoinedChannelsByTerm = (database: Database, term: string, ta
     }
 
     const value = sanitizeLikeString(term);
+
     // let displayname = `c.display_name LIKE '${value}%'`;
     let displayname = `c.display_name LIKE '${capitalizeFirstLetter(value)}%'`;
-    let dbDisplayname = `c.db_display_name LIKE '${value.toLowerCase()}%'`;
+
+    // let dbDisplayname = `c.db_display_name LIKE '${value.toLowerCase()}%'`;
     if (!matchStart) {
         // displayname = `c.display_name LIKE '%${value}%' AND c.display_name NOT LIKE '${value}%'`;
         displayname = `c.display_name LIKE '%${capitalizeFirstLetter(value)}%' AND c.display_name NOT LIKE '${capitalizeFirstLetter(value)}%'`;
-        dbDisplayname = `c.db_display_name LIKE '%${value.toLowerCase()}%' AND c.db_display_name NOT LIKE '${value.toLowerCase()}%'`;
+
+        // dbDisplayname = `c.db_display_name LIKE '%${value.toLowerCase()}%' AND c.db_display_name NOT LIKE '${value.toLowerCase()}%'`;
     }
     return database.get<MyChannelModel>(MY_CHANNEL).query(
         Q.unsafeSqlQuery(`SELECT DISTINCT my.* FROM ${MY_CHANNEL} my
