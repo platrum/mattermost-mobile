@@ -625,13 +625,11 @@ const Markdown = ({
         return line;
     }).join('\n');
 
-    let ast = parser.parse(str);
-
     const errorLogged = useRef(false);
 
     let ast;
     try {
-        ast = parser.parse(value.toString());
+        ast = parser.parse(str);
 
         ast = combineTextNodes(ast);
         ast = addListItemIndices(ast);

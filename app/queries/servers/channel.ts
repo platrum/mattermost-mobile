@@ -7,10 +7,10 @@ import {Database, Model, Q, Query, Relation} from '@nozbe/watermelondb';
 import {of as of$, Observable} from 'rxjs';
 import {map as map$, switchMap, distinctUntilChanged} from 'rxjs/operators';
 
-import {capitalizeFirstLetter} from '@app/screens/find_channels/utils';
 import {General, Permissions} from '@constants';
 import {MM_TABLES} from '@constants/database';
 import {sanitizeLikeString} from '@helpers/database';
+import {capitalizeFirstLetter} from '@screens/find_channels/utils';
 import {hasPermission} from '@utils/role';
 
 import {prepareDeletePost} from './post';
