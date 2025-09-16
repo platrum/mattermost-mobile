@@ -137,14 +137,14 @@ const getExtraPropsForNode = (node: any) => {
 };
 
 const Markdown = ({
-                      autolinkedUrlSchemes, baseTextStyle, blockStyles, channelId, channelMentions,
-                      disableAtChannelMentionHighlight, disableAtMentions, disableBlockQuote, disableChannelLink,
-                      disableCodeBlock, disableGallery, disableHashtags, disableHeading, disableTables,
-                      enableInlineLatex, enableLatex, maxNodes,
-                      imagesMetadata, isEdited, isReplyPost, isSearchResult, layoutHeight, layoutWidth,
-                      location, mentionKeys, highlightKeys, minimumHashtagLength = 3, onPostPress, postId, searchPatterns,
-                      textStyles = {}, theme, value = '', baseParagraphStyle, onLinkLongPress, isUnsafeLinksPost,
-                  }: MarkdownProps) => {
+    autolinkedUrlSchemes, baseTextStyle, blockStyles, channelId, channelMentions,
+    disableAtChannelMentionHighlight, disableAtMentions, disableBlockQuote, disableChannelLink,
+    disableCodeBlock, disableGallery, disableHashtags, disableHeading, disableTables,
+    enableInlineLatex, enableLatex, maxNodes,
+    imagesMetadata, isEdited, isReplyPost, isSearchResult, layoutHeight, layoutWidth,
+    location, mentionKeys, highlightKeys, minimumHashtagLength = 3, onPostPress, postId, searchPatterns,
+    textStyles = {}, theme, value = '', baseParagraphStyle, onLinkLongPress, isUnsafeLinksPost,
+}: MarkdownProps) => {
     const style = getStyleSheet(theme);
     const managedConfig = useManagedConfig<ManagedConfig>();
 
@@ -615,7 +615,7 @@ const Markdown = ({
     const renderer = useMemo(createRenderer, [theme, textStyles]);
     let str = value.toString();
 
-    str = str.split('\n').map(line => {
+    str = str.split('\n').map((line) => {
         if (line.trim() === '+') {
             return '&plus;';
         }

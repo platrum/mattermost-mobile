@@ -7,6 +7,7 @@ import {Database, Model, Q, Query, Relation} from '@nozbe/watermelondb';
 import {of as of$, Observable} from 'rxjs';
 import {map as map$, switchMap, distinctUntilChanged} from 'rxjs/operators';
 
+import {capitalizeFirstLetter} from '@app/screens/find_channels/utils';
 import {General, Permissions} from '@constants';
 import {MM_TABLES} from '@constants/database';
 import {sanitizeLikeString} from '@helpers/database';
@@ -26,7 +27,6 @@ import type ChannelMembershipModel from '@typings/database/models/servers/channe
 import type MyChannelModel from '@typings/database/models/servers/my_channel';
 import type MyChannelSettingsModel from '@typings/database/models/servers/my_channel_settings';
 import type UserModel from '@typings/database/models/servers/user';
-import { capitalizeFirstLetter } from '@app/screens/find_channels/utils';
 
 const {SERVER: {CHANNEL, MY_CHANNEL, CHANNEL_MEMBERSHIP, MY_CHANNEL_SETTINGS, CHANNEL_INFO, USER, TEAM}} = MM_TABLES;
 
@@ -556,11 +556,13 @@ export const observeDirectChannelsByTerm = (database: Database, term: string, ta
     const value = sanitizeLikeString(term.startsWith('@') ? term.substring(1) : term);
     let username = `u.username LIKE '${value}%'`;
     let displayname = `c.display_name LIKE '${capitalizeFirstLetter(value)}%'`;
-    let dbDisplayname = `c.db_display_name LIKE '${value.toLowerCase()}%'`;
+
+    // let dbDisplayname = `c.db_display_name LIKE '${value.toLowerCase()}%'`;
     if (!matchStart) {
         username = `u.username LIKE '%${value}%' AND u.username NOT LIKE '${value}%'`;
         displayname = `(c.display_name LIKE '%${capitalizeFirstLetter(value)}%' AND c.display_name NOT LIKE '${capitalizeFirstLetter(value)}%')`;
-        dbDisplayname = `(c.db_display_name LIKE '%${value.toLowerCase()}%' AND c.db_display_name NOT LIKE '${value.toLowerCase()}%')`;
+
+        // dbDisplayname = `(c.db_display_name LIKE '%${value.toLowerCase()}%' AND c.db_display_name NOT LIKE '${value.toLowerCase()}%')`;
     }
     const currentUserId = observeCurrentUserId(database);
     return currentUserId.pipe(
@@ -584,15 +586,19 @@ export const observeNotDirectChannelsByTerm = (database: Database, term: string,
     const value = sanitizeLikeString(term.startsWith('@') ? term.substring(1) : term);
     let username = `u.username LIKE '${value}%'`;
     let nickname = `u.nickname LIKE '${value}%'`;
+
     // let displayname = `(u.first_name || ' ' || u.last_name) LIKE '${value}%'`;
     let displayname = `(u.first_name || ' ' || u.last_name) LIKE '${capitalizeFirstLetter(value)}%'`;
-    let dbDisplayname = `u.db_display_name LIKE '${value.toLowerCase()}%'`;
+
+    // let dbDisplayname = `u.db_display_name LIKE '${value.toLowerCase()}%'`;
     if (!matchStart) {
         username = `(u.username LIKE '%${value}%' AND u.username NOT LIKE '${value}%')`;
         nickname = `(u.nickname LIKE '%${value}%' AND u.nickname NOT LIKE '${value}%')`;
+
         // displayname = `((u.first_name || ' ' || u.last_name) LIKE '%${value}%' AND (u.first_name || ' ' || u.last_name) NOT LIKE '${value}%')`;
         displayname = `((u.first_name || ' ' || u.last_name) LIKE '%${capitalizeFirstLetter(value)}%' AND (u.first_name || ' ' || u.last_name) NOT LIKE '${capitalizeFirstLetter(value)}%')`;
-        dbDisplayname = `(u.db_display_name LIKE '%${value.toLowerCase()}%' AND u.db_display_name NOT LIKE '${value.toLowerCase()}%')`;
+
+        // dbDisplayname = `(u.db_display_name LIKE '%${value.toLowerCase()}%' AND u.db_display_name NOT LIKE '${value.toLowerCase()}%')`;
     }
 
     return teammateNameSetting.pipe(
