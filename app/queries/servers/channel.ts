@@ -10,6 +10,7 @@ import {map as map$, switchMap, distinctUntilChanged} from 'rxjs/operators';
 import {General, Permissions} from '@constants';
 import {MM_TABLES} from '@constants/database';
 import {sanitizeLikeString} from '@helpers/database';
+import {capitalizeFirstLetter} from '@screens/find_channels/utils';
 import {hasPermission} from '@utils/role';
 
 import {prepareDeletePost} from './post';
@@ -20,14 +21,37 @@ import {observeTeammateNameDisplay} from './user';
 import type ServerDataOperator from '@database/operator/server_data_operator';
 import type {Clause} from '@nozbe/watermelondb/QueryDescription';
 import type ChannelModel from '@typings/database/models/servers/channel';
+import type ChannelBookmarkModel from '@typings/database/models/servers/channel_bookmark';
 import type ChannelInfoModel from '@typings/database/models/servers/channel_info';
 import type ChannelMembershipModel from '@typings/database/models/servers/channel_membership';
 import type MyChannelModel from '@typings/database/models/servers/my_channel';
 import type MyChannelSettingsModel from '@typings/database/models/servers/my_channel_settings';
 import type UserModel from '@typings/database/models/servers/user';
-import { capitalizeFirstLetter } from '@app/screens/find_channels/utils';
 
 const {SERVER: {CHANNEL, MY_CHANNEL, CHANNEL_MEMBERSHIP, MY_CHANNEL_SETTINGS, CHANNEL_INFO, USER, TEAM}} = MM_TABLES;
+
+export type ChannelMembershipsExtended = Pick<ChannelMembership, 'user_id' | 'channel_id' | 'scheme_admin'>;
+
+export function prepareChannels(
+    operator: ServerDataOperator,
+    channels?: Channel[],
+    channelInfos?: ChannelInfo[],
+    channelMemberships?: ChannelMembershipsExtended[],
+    memberships?: ChannelMembership[],
+    isCRTEnabled?: boolean,
+): Array<Promise<Model[]>> {
+    try {
+        const channelRecords = operator.handleChannel({channels, prepareRecordsOnly: true});
+        const channelInfoRecords = operator.handleChannelInfo({channelInfos, prepareRecordsOnly: true});
+        const membershipRecords = operator.handleChannelMembership({channelMemberships, prepareRecordsOnly: true});
+        const myChannelRecords = operator.handleMyChannel({channels, myChannels: memberships, prepareRecordsOnly: true, isCRTEnabled});
+        const myChannelSettingsRecords = operator.handleMyChannelSettings({settings: memberships, prepareRecordsOnly: true});
+
+        return [channelRecords, channelInfoRecords, membershipRecords, myChannelRecords, myChannelSettingsRecords];
+    } catch {
+        return [];
+    }
+}
 
 export function prepareMissingChannelsForAllTeams(operator: ServerDataOperator, channels: Channel[], channelMembers: ChannelMembership[], isCRTEnabled?: boolean): Array<Promise<Model[]>> {
     const channelInfos: ChannelInfo[] = [];
@@ -55,50 +79,33 @@ export function prepareMissingChannelsForAllTeams(operator: ServerDataOperator, 
         };
     });
 
-    try {
-        const channelRecords = operator.handleChannel({channels, prepareRecordsOnly: true});
-        const channelInfoRecords = operator.handleChannelInfo({channelInfos, prepareRecordsOnly: true});
-        const membershipRecords = operator.handleChannelMembership({channelMemberships: memberships, prepareRecordsOnly: true});
-        const myChannelRecords = operator.handleMyChannel({channels, myChannels: memberships, prepareRecordsOnly: true, isCRTEnabled});
-        const myChannelSettingsRecords = operator.handleMyChannelSettings({settings: memberships, prepareRecordsOnly: true});
-
-        return [channelRecords, channelInfoRecords, membershipRecords, myChannelRecords, myChannelSettingsRecords];
-    } catch {
-        return [];
-    }
+    return prepareChannels(operator, channels, channelInfos, memberships, memberships, isCRTEnabled);
 }
 
-export const prepareMyChannelsForTeam = async (operator: ServerDataOperator, teamId: string, channels: Channel[], channelMembers: ChannelMembership[], isCRTEnabled?: boolean) => {
-    const {database} = operator;
-
-    const channelsQuery = queryAllChannelsForTeam(database, teamId);
-    const allChannelsForTeam = (await channelsQuery.fetch()).
-        reduce((map: Record<string, ChannelModel>, channel) => {
-            map[channel.id] = channel;
-            return map;
-        }, {});
-
-    const channelInfosQuery = queryAllChannelsInfoForTeam(database, teamId);
-    const allChannelsInfoForTeam = (await channelInfosQuery.fetch()).
-        reduce((map: Record<string, ChannelInfoModel>, info) => {
-            map[info.id] = info;
-            return map;
-        }, {});
-
+const buildChannelInfos = async (database: Database, channels: Channel[]) => {
     const channelInfos: ChannelInfo[] = [];
-    const memberships = channelMembers.map((cm) => {
-        return {...cm, id: cm.channel_id};
-    });
+
+    const channelsQuery = await queryAllChannels(database);
+    const storedChannelsMap = channelsQuery.reduce<Record<string, ChannelModel>>((map, channel) => {
+        map[channel.id] = channel;
+        return map;
+    }, {});
+
+    const channelInfosQuery = await queryAllChannelsInfo(database);
+    const storedChannelInfosMap = channelInfosQuery.reduce<Record<string, ChannelInfoModel>>((map, info) => {
+        map[info.id] = info;
+        return map;
+    }, {});
 
     for (const c of channels) {
-        const storedChannel = allChannelsForTeam[c.id];
+        const storedChannel = storedChannelsMap[c.id];
         let storedInfo: ChannelInfoModel | undefined;
         let member_count = 0;
         let guest_count = 0;
         let pinned_post_count = 0;
         let files_count = 0;
         if (storedChannel) {
-            storedInfo = allChannelsInfoForTeam[c.id];
+            storedInfo = storedChannelInfosMap[c.id];
             if (storedInfo) {
                 member_count = storedInfo.memberCount;
                 guest_count = storedInfo.guestCount;
@@ -118,17 +125,29 @@ export const prepareMyChannelsForTeam = async (operator: ServerDataOperator, tea
         });
     }
 
-    try {
-        const channelRecords = operator.handleChannel({channels, prepareRecordsOnly: true});
-        const channelInfoRecords = operator.handleChannelInfo({channelInfos, prepareRecordsOnly: true});
-        const membershipRecords = operator.handleChannelMembership({channelMemberships: channelMembers, prepareRecordsOnly: true});
-        const myChannelRecords = operator.handleMyChannel({channels, myChannels: memberships, prepareRecordsOnly: true, isCRTEnabled});
-        const myChannelSettingsRecords = operator.handleMyChannelSettings({settings: memberships, prepareRecordsOnly: true});
+    return channelInfos;
+};
 
-        return [channelRecords, channelInfoRecords, membershipRecords, myChannelRecords, myChannelSettingsRecords];
-    } catch {
-        return [];
-    }
+export const prepareAllMyChannels = async (operator: ServerDataOperator, channels: Channel[], channelMemberships: ChannelMembership[], isCRTEnabled?: boolean) => {
+    const {database} = operator;
+
+    const fetchedChannelIds = new Set(channels.map((c) => c.id));
+    const memberships = channelMemberships.filter((m) => fetchedChannelIds.has(m.channel_id)).map((m) => ({...m, id: m.channel_id}));
+
+    const channelInfos = await buildChannelInfos(database, channels);
+
+    return prepareChannels(operator, channels, channelInfos, channelMemberships, memberships, isCRTEnabled);
+};
+
+export const prepareMyChannelsForTeam = async (operator: ServerDataOperator, teamId: string, channels: Channel[], channelMembers: ChannelMembership[], isCRTEnabled?: boolean) => {
+    const {database} = operator;
+
+    const channelInfos = await buildChannelInfos(database, channels);
+    const memberships = channelMembers.map((cm) => {
+        return {...cm, id: cm.channel_id};
+    });
+
+    return prepareChannels(operator, channels, channelInfos, channelMembers, memberships, isCRTEnabled);
 };
 
 export const prepareDeleteChannel = async (channel: ChannelModel): Promise<Model[]> => {
@@ -170,6 +189,27 @@ export const prepareDeleteChannel = async (channel: ChannelModel): Promise<Model
         }
     }
 
+    const bookmarks = await channel.bookmarks?.fetch();
+    if (bookmarks?.length) {
+        for await (const bookmark of bookmarks) {
+            const prepareBookmarks = await prepareDeleteBookmarks(bookmark);
+            preparedModels.push(...prepareBookmarks);
+        }
+    }
+
+    return preparedModels;
+};
+
+export const prepareDeleteBookmarks = async (bookmark: ChannelBookmarkModel) => {
+    const preparedModels: Model[] = [bookmark.prepareDestroyPermanently()];
+    try {
+        if (bookmark.fileId) {
+            const file = await bookmark.file.fetch();
+            preparedModels.push(file.prepareDestroyPermanently());
+        }
+    } catch {
+        // Record not found, do nothing
+    }
     return preparedModels;
 };
 
@@ -292,7 +332,7 @@ export const getDefaultChannelForTeam = async (database: Database, teamId: strin
     ];
 
     if (ignoreId) {
-        clauses.push(Q.where('channel_id', Q.notEq(ignoreId)));
+        clauses.push(Q.where('id', Q.notEq(ignoreId)));
     }
 
     const myChannels = await database.get<ChannelModel>(CHANNEL).query(
@@ -516,11 +556,13 @@ export const observeDirectChannelsByTerm = (database: Database, term: string, ta
     const value = sanitizeLikeString(term.startsWith('@') ? term.substring(1) : term);
     let username = `u.username LIKE '${value}%'`;
     let displayname = `c.display_name LIKE '${capitalizeFirstLetter(value)}%'`;
-    let dbDisplayname = `c.db_display_name LIKE '${value.toLowerCase()}%'`;
+
+    // let dbDisplayname = `c.db_display_name LIKE '${value.toLowerCase()}%'`;
     if (!matchStart) {
         username = `u.username LIKE '%${value}%' AND u.username NOT LIKE '${value}%'`;
         displayname = `(c.display_name LIKE '%${capitalizeFirstLetter(value)}%' AND c.display_name NOT LIKE '${capitalizeFirstLetter(value)}%')`;
-        dbDisplayname = `(c.db_display_name LIKE '%${value.toLowerCase()}%' AND c.db_display_name NOT LIKE '${value.toLowerCase()}%')`;
+
+        // dbDisplayname = `(c.db_display_name LIKE '%${value.toLowerCase()}%' AND c.db_display_name NOT LIKE '${value.toLowerCase()}%')`;
     }
     const currentUserId = observeCurrentUserId(database);
     return currentUserId.pipe(
@@ -544,15 +586,19 @@ export const observeNotDirectChannelsByTerm = (database: Database, term: string,
     const value = sanitizeLikeString(term.startsWith('@') ? term.substring(1) : term);
     let username = `u.username LIKE '${value}%'`;
     let nickname = `u.nickname LIKE '${value}%'`;
+
     // let displayname = `(u.first_name || ' ' || u.last_name) LIKE '${value}%'`;
     let displayname = `(u.first_name || ' ' || u.last_name) LIKE '${capitalizeFirstLetter(value)}%'`;
-    let dbDisplayname = `u.db_display_name LIKE '${value.toLowerCase()}%'`;
+
+    // let dbDisplayname = `u.db_display_name LIKE '${value.toLowerCase()}%'`;
     if (!matchStart) {
         username = `(u.username LIKE '%${value}%' AND u.username NOT LIKE '${value}%')`;
         nickname = `(u.nickname LIKE '%${value}%' AND u.nickname NOT LIKE '${value}%')`;
+
         // displayname = `((u.first_name || ' ' || u.last_name) LIKE '%${value}%' AND (u.first_name || ' ' || u.last_name) NOT LIKE '${value}%')`;
         displayname = `((u.first_name || ' ' || u.last_name) LIKE '%${capitalizeFirstLetter(value)}%' AND (u.first_name || ' ' || u.last_name) NOT LIKE '${capitalizeFirstLetter(value)}%')`;
-        dbDisplayname = `(u.db_display_name LIKE '%${value.toLowerCase()}%' AND u.db_display_name NOT LIKE '${value.toLowerCase()}%')`;
+
+        // dbDisplayname = `(u.db_display_name LIKE '%${value.toLowerCase()}%' AND u.db_display_name NOT LIKE '${value.toLowerCase()}%')`;
     }
 
     return teammateNameSetting.pipe(
@@ -587,13 +633,16 @@ export const observeJoinedChannelsByTerm = (database: Database, term: string, ta
     }
 
     const value = sanitizeLikeString(term);
+
     // let displayname = `c.display_name LIKE '${value}%'`;
     let displayname = `c.display_name LIKE '${capitalizeFirstLetter(value)}%'`;
-    let dbDisplayname = `c.db_display_name LIKE '${value.toLowerCase()}%'`;
+
+    // let dbDisplayname = `c.db_display_name LIKE '${value.toLowerCase()}%'`;
     if (!matchStart) {
         // displayname = `c.display_name LIKE '%${value}%' AND c.display_name NOT LIKE '${value}%'`;
         displayname = `c.display_name LIKE '%${capitalizeFirstLetter(value)}%' AND c.display_name NOT LIKE '${capitalizeFirstLetter(value)}%'`;
-        dbDisplayname = `c.db_display_name LIKE '%${value.toLowerCase()}%' AND c.db_display_name NOT LIKE '${value.toLowerCase()}%'`;
+
+        // dbDisplayname = `c.db_display_name LIKE '%${value.toLowerCase()}%' AND c.db_display_name NOT LIKE '${value.toLowerCase()}%'`;
     }
     return database.get<MyChannelModel>(MY_CHANNEL).query(
         Q.unsafeSqlQuery(`SELECT DISTINCT my.* FROM ${MY_CHANNEL} my
