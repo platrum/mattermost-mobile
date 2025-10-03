@@ -1,0 +1,132 @@
+---
+name: Sync Lock Files Command
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  sync-locks:
+    runs-on: ubuntu-22.04
+    if: |
+      github.event.issue.pull_request && 
+      (contains(github.event.comment.body, '/sync-locks') || contains(github.event.comment.body, '/fix-conflicts'))
+    
+    steps:
+      - name: ci/get-pr-info
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: ${{ github.event.issue.number }}
+            });
+            
+            core.setOutput('base_ref', pr.base.ref);
+            core.setOutput('head_sha', pr.head.sha);
+            core.setOutput('head_ref', pr.head.ref);
+            
+            return pr;
+
+      - name: ci/checkout-base
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ steps.pr.outputs.base_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: ci/configure-git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: ci/react-to-comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.reactions.createForIssueComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: ${{ github.event.comment.id }},
+              content: 'rocket'
+            });
+
+      - name: ci/sync-lock-files
+        run: |
+          HEAD_SHA="${{ steps.pr.outputs.head_sha }}"
+          
+          echo "Syncing lock files from $HEAD_SHA..."
+          
+          SYNCED=""
+          
+          # Sync package-lock.json
+          if curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                  -H "Accept: application/vnd.github.v3.raw" \
+                  -o package-lock.json.new \
+                  "https://api.github.com/repos/${{ github.repository }}/contents/package-lock.json?ref=$HEAD_SHA"; then
+            if [[ -s package-lock.json.new ]]; then
+              mv package-lock.json.new package-lock.json
+              SYNCED="$SYNCED package-lock.json"
+              echo "✅ Synced package-lock.json"
+            fi
+          fi
+          
+          # Sync Podfile.lock
+          if curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                  -H "Accept: application/vnd.github.v3.raw" \
+                  -o ios/Podfile.lock.new \
+                  "https://api.github.com/repos/${{ github.repository }}/contents/ios/Podfile.lock?ref=$HEAD_SHA"; then
+            if [[ -s ios/Podfile.lock.new ]]; then
+              mv ios/Podfile.lock.new ios/Podfile.lock
+              SYNCED="$SYNCED ios/Podfile.lock"
+              echo "✅ Synced ios/Podfile.lock"
+            fi
+          fi
+          
+          echo "SYNCED_FILES=$SYNCED" >> $GITHUB_ENV
+
+      - name: ci/commit-and-push
+        run: |
+          if [[ -z "$SYNCED_FILES" ]]; then
+            echo "No files synced"
+            exit 0
+          fi
+          
+          if git diff --quiet $SYNCED_FILES; then
+            echo "No changes detected"
+            exit 0
+          fi
+          
+          git add $SYNCED_FILES
+          git commit -m "fix: sync lock files to resolve conflicts
+
+Synced lock files from PR #${{ github.event.issue.number }}:
+$SYNCED_FILES
+
+Triggered by: ${{ github.event.comment.user.login }}
+Command: ${{ github.event.comment.body }}"
+          
+          git push origin ${{ steps.pr.outputs.base_ref }}
+
+      - name: ci/comment-result
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const syncedFiles = process.env.SYNCED_FILES;
+            
+            let message = '✅ **Lock Files Sync Complete**\n\n';
+            
+            if (syncedFiles && syncedFiles.trim()) {
+              message += `**Synced files:**\n${syncedFiles.trim().split(' ').map(f => `- \`${f}\``).join('\n')}\n\n`;
+              message += `The lock files have been synced to \`${{ steps.pr.outputs.base_ref }}\`. `;
+              message += 'This should resolve any merge conflicts. You can now merge the PR! 🚀';
+            } else {
+              message += 'No lock files needed syncing. The files are already up to date.';
+            }
+            
+            await github.rest.issues.createComment({
+              issue_number: ${{ github.event.issue.number }},
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: message
+            });

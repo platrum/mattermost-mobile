@@ -1,0 +1,203 @@
+---
+name: File Sync from PR
+on:
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number'
+        required: true
+        type: number
+      file_paths:
+        description: 'Comma-separated list of file paths to sync'
+        required: true
+        default: 'package.json'
+      target_branch:
+        description: 'Target branch to sync to'
+        required: false
+        default: 'main'
+
+jobs:
+  sync-files:
+    runs-on: ubuntu-22.04
+    if: |
+      (github.event_name == 'issue_comment' && 
+       github.event.issue.pull_request && 
+       contains(github.event.comment.body, '/sync-files')) ||
+      github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - name: ci/parse-comment
+        id: parse
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "pr_number=${{ github.event.inputs.pr_number }}" >> $GITHUB_OUTPUT
+            echo "file_paths=${{ github.event.inputs.file_paths }}" >> $GITHUB_OUTPUT
+            echo "target_branch=${{ github.event.inputs.target_branch }}" >> $GITHUB_OUTPUT
+          else
+            COMMENT="${{ github.event.comment.body }}"
+            PR_NUMBER="${{ github.event.issue.number }}"
+            
+            if [[ "$COMMENT" =~ /sync-files[[:space:]]+([^[:space:]]+) ]]; then
+              FILES="${BASH_REMATCH[1]}"
+            else
+              FILES="package.json"
+            fi
+            
+            echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+            echo "file_paths=$FILES" >> $GITHUB_OUTPUT
+            echo "target_branch=main" >> $GITHUB_OUTPUT
+          fi
+
+      - name: ci/checkout-target-branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ steps.parse.outputs.target_branch }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: ci/configure-git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: ci/get-pr-info
+        id: pr-info
+        run: |
+          PR_NUMBER="${{ steps.parse.outputs.pr_number }}"
+          
+          # Получаем информацию о PR
+          PR_INFO=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/pulls/$PR_NUMBER")
+          
+          PR_HEAD_SHA=$(echo "$PR_INFO" | jq -r '.head.sha')
+          PR_TITLE=$(echo "$PR_INFO" | jq -r '.title')
+          PR_USER=$(echo "$PR_INFO" | jq -r '.user.login')
+          
+          echo "pr_head_sha=$PR_HEAD_SHA" >> $GITHUB_OUTPUT
+          echo "pr_title=$PR_TITLE" >> $GITHUB_OUTPUT
+          echo "pr_user=$PR_USER" >> $GITHUB_OUTPUT
+
+      - name: ci/sync-files
+        id: sync
+        run: |
+          PR_HEAD_SHA="${{ steps.pr-info.outputs.pr_head_sha }}"
+          FILE_PATHS="${{ steps.parse.outputs.file_paths }}"
+          SYNCED_FILES=""
+          FAILED_FILES=""
+          
+          # Разбиваем список файлов по запятым
+          IFS=',' read -ra FILES <<< "$FILE_PATHS"
+          
+          for file in "${FILES[@]}"; do
+            file=$(echo "$file" | xargs)  # Убираем пробелы
+            echo "Syncing file: $file"
+            
+            # Скачиваем файл из PR
+            if curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                    -H "Accept: application/vnd.github.v3.raw" \
+                    -o "$file.tmp" \
+                    "https://api.github.com/repos/${{ github.repository }}/contents/$file?ref=$PR_HEAD_SHA"; then
+              
+              # Проверяем, что файл не пустой
+              if [[ -s "$file.tmp" ]]; then
+                mv "$file.tmp" "$file"
+                SYNCED_FILES="$SYNCED_FILES $file"
+                echo "Successfully synced: $file"
+              else
+                FAILED_FILES="$FAILED_FILES $file"
+                echo "Failed to sync (empty file): $file"
+                rm -f "$file.tmp"
+              fi
+            else
+              FAILED_FILES="$FAILED_FILES $file"
+              echo "Failed to download: $file"
+              rm -f "$file.tmp"
+            fi
+          done
+          
+          echo "synced_files=$SYNCED_FILES" >> $GITHUB_OUTPUT
+          echo "failed_files=$FAILED_FILES" >> $GITHUB_OUTPUT
+
+      - name: ci/commit-and-push
+        run: |
+          SYNCED_FILES="${{ steps.sync.outputs.synced_files }}"
+          FAILED_FILES="${{ steps.sync.outputs.failed_files }}"
+          PR_NUMBER="${{ steps.parse.outputs.pr_number }}"
+          PR_TITLE="${{ steps.pr-info.outputs.pr_title }}"
+          TARGET_BRANCH="${{ steps.parse.outputs.target_branch }}"
+          
+          if [[ -z "$SYNCED_FILES" ]]; then
+            echo "No files were successfully synced"
+            exit 1
+          fi
+          
+          # Проверяем изменения
+          if git diff --quiet $SYNCED_FILES; then
+            echo "No changes detected in synced files"
+            exit 0
+          fi
+          
+          # Коммитим изменения
+          git add $SYNCED_FILES
+          
+          COMMIT_MSG="sync: update files from PR #$PR_NUMBER
+
+Files synced from PR #$PR_NUMBER: $PR_TITLE
+- Synced files:$SYNCED_FILES"
+
+          if [[ -n "$FAILED_FILES" ]]; then
+            COMMIT_MSG="$COMMIT_MSG
+- Failed files:$FAILED_FILES"
+          fi
+
+          COMMIT_MSG="$COMMIT_MSG
+
+Co-authored-by: ${{ steps.pr-info.outputs.pr_user }} <${{ steps.pr-info.outputs.pr_user }}@users.noreply.github.com>"
+          
+          git commit -m "$COMMIT_MSG"
+          git push origin "$TARGET_BRANCH"
+
+      - name: ci/update-comment
+        if: github.event_name == 'issue_comment'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const syncedFiles = '${{ steps.sync.outputs.synced_files }}';
+            const failedFiles = '${{ steps.sync.outputs.failed_files }}';
+            const targetBranch = '${{ steps.parse.outputs.target_branch }}';
+            
+            let message = `**File Sync Results**\n\n`;
+            
+            if (syncedFiles.trim()) {
+              message += `**Successfully synced to \`${targetBranch}\`:**\n`;
+              syncedFiles.trim().split(' ').forEach(file => {
+                message += `- \`${file}\`\n`;
+              });
+            }
+            
+            if (failedFiles.trim()) {
+              message += `**Failed to sync:**\n`;
+              failedFiles.trim().split(' ').forEach(file => {
+                message += `- \`${file}\`\n`;
+              });
+            }
+            
+            message += `\n**Workflow:** [View Details](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})`;
+            
+            // Реагируем на комментарий
+            await github.rest.reactions.createForIssueComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: ${{ github.event.comment.id }},
+              content: 'rocket'
+            });
+            
+            // Добавляем ответный комментарий
+            await github.rest.issues.createComment({
+              issue_number: ${{ github.event.issue.number }},
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: message
+            });
