@@ -92,5 +92,5 @@ Lock files have been automatically synced from this PR to \`${{ github.event.pul
 - \`package-lock.json\`
 - \`ios/Podfile.lock\`
 
-CI tests will now run against the updated base branch. You can merge this PR without conflicts! 🚀`
+You can now merge this PR without conflicts! 🚀`
             });

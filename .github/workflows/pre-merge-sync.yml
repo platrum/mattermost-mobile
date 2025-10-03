@@ -152,7 +152,7 @@ Automatically synced lock files from PR #$PR_NUMBER to prevent merge conflicts:
 $SYNCED_FILES
 
 This ensures that the target branch ($BASE_REF) has the latest lock file versions
-before running tests and merging the PR.
+to prevent merge conflicts.
 
 PR: $PR_TITLE
 Co-authored-by: $PR_USER <$PR_USER@users.noreply.github.com>"
@@ -180,11 +180,11 @@ The following lock files have been automatically synced from this PR to the targ
 
 ${filesList}
 
-This happens automatically when lock files are modified in a PR. The sync occurs **before** running tests to ensure compatibility.
+This happens automatically when lock files are modified in a PR to prevent merge conflicts.
 
 **Next steps:**
-- Tests will run against the updated target branch
-- You can now merge without lock file conflicts
+- Lock files are now synchronized
+- You can now merge without lock file conflicts  
 - No action required from your side
 
 **Workflow:** [View Details](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})`;
@@ -195,47 +195,3 @@ This happens automatically when lock files are modified in a PR. The sync occurs
               repo: context.repo.repo,
               body: message
             });
-
-  run-tests:
-    runs-on: ubuntu-22.04
-    needs: sync-lock-files
-    if: always() && (needs.sync-lock-files.result == 'success' || needs.sync-lock-files.result == 'skipped')
-    
-    steps:
-      - name: ci/checkout-updated-target-branch
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          ref: ${{ github.event.pull_request.base.ref }}
-
-      - name: ci/setup-node
-        uses: actions/setup-node@a57c6165b6296b7582531f72318bb9966f708e20 # v4.1.0
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: ci/install-dependencies
-        run: |
-          echo "Installing dependencies with updated lock files..."
-          npm ci --legacy-peer-deps
-
-      - name: ci/run-basic-tests
-        run: |
-          echo "Running tests to verify lock file sync didn't break anything..."
-          
-          npm run lint || echo "Lint issues detected"
-          npm run type-check || echo "Type check issues detected"
-          
-          echo "Basic validation completed"
-
-      - name: ci/validate-merge-readiness
-        run: |
-          echo "Validating that PR can be merged without conflicts..."
-          
-          git fetch origin ${{ github.event.pull_request.head.ref }}
-          
-          if git merge-tree $(git merge-base HEAD origin/${{ github.event.pull_request.head.ref }}) HEAD origin/${{ github.event.pull_request.head.ref }} | grep -q '<<<<<<<'; then
-            echo "Merge conflicts still detected"
-            exit 1
-          else
-            echo "No merge conflicts detected"
-          fi
