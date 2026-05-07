@@ -5,9 +5,9 @@ import React, {useCallback, useState} from 'react';
 import {type LayoutChangeEvent, type StyleProp, View, type ViewStyle} from 'react-native';
 
 import Files from '@components/files';
+import AudioFile from '@components/files/audio_file';
 import FormattedText from '@components/formatted_text';
 import JumboEmoji from '@components/jumbo_emoji';
-import AudioFile from '@components/files/audio_file';
 import {Screens} from '@constants';
 import {THREAD} from '@constants/screens';
 import {isEdited as postEdited, isPostFailed} from '@utils/post';

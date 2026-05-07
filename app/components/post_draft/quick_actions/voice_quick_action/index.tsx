@@ -1,16 +1,16 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import wavToMp3 from '@bitnet-infotech/react-native-wav-to-mp3';
 import {cacheDirectory, deleteAsync, getInfoAsync} from 'expo-file-system';
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useIntl} from 'react-intl';
 import {Alert, Linking, Modal, Platform, StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import AudioRecord from 'react-native-audio-record';
-import wavToMp3 from '@bitnet-infotech/react-native-wav-to-mp3';
 import Permissions from 'react-native-permissions';
-import {createPost} from '@actions/remote/post';
-import {uploadFile} from '@actions/remote/file';
 
+import {uploadFile} from '@actions/remote/file';
+import {createPost} from '@actions/remote/post';
 import CompassIcon from '@components/compass_icon';
 import TouchableWithFeedback from '@components/touchable_with_feedback';
 import {ICON_SIZE} from '@constants/post_draft';
