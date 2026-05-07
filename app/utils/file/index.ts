@@ -72,8 +72,8 @@ const SUPPORTED_VIDEO_FORMAT = Platform.select({
 });
 
 const SUPPORTED_AUDIO_FORMAT = Platform.select({
-    ios: ['audio/mp4', 'audio/mpeg', 'audio/wav', 'audio/x-aiff'],
-    android: ['audio/mp4', 'audio/mpeg', 'audio/ogg', 'audio/wav', 'audio/webm', 'audio/3gpp'],
+    ios: ['audio/mp4', 'audio/mpeg', 'audio/wav', 'audio/x-aiff', 'audio/x-m4a', 'audio/aac', 'audio/webm', 'audio/ogg'],
+    android: ['audio/mp4', 'audio/mpeg', 'audio/ogg', 'audio/wav', 'audio/webm', 'audio/3gpp', 'audio/x-m4a', 'audio/aac', 'audio/mp4a-latm'],
 });
 
 const types: Record<string, string> = {};
@@ -321,11 +321,26 @@ export const isAudio = (file?: FileInfo | FileModel) => {
     let mime = 'mime_type' in file ? file.mime_type : file.mimeType;
     if (mime && mime.includes(';')) {
         mime = mime.split(';')[0];
-    } else if (!mime && file?.name) {
-        mime = lookupMimeType(file.name);
+    } else if (!mime) {
+        mime = lookupMimeType(file.name || file.extension || '');
     }
 
-    return SUPPORTED_AUDIO_FORMAT!.includes(mime);
+    if (mime && mime.startsWith('audio/')) {
+        return true;
+    }
+
+    if (SUPPORTED_AUDIO_FORMAT!.includes(mime)) {
+        return true;
+    }
+
+    const fileName = (file.name || '').toLowerCase();
+    const fileExtension = (file.extension || '').toLowerCase();
+    const extension = fileExtension || (fileName.includes('.') ? fileName.split('.').pop() || '' : '');
+    if (Files.AUDIO_TYPES.includes(extension)) {
+        return true;
+    }
+
+    return false;
 };
 
 export function getFormattedFileSize(bytes: number): string {

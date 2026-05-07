@@ -215,8 +215,12 @@ export default function DraftInput({
                     <View style={style.actionsContainer}>
                         <QuickActions
                             testID={quickActionsTestID}
+                            channelId={channelId}
+                            currentUserId={currentUserId}
                             fileCount={files.length}
                             addFiles={addFiles}
+                            rootId={rootId}
+                            sendMessage={handleSendMessage}
                             updateValue={updateValue}
                             value={value}
                             postPriority={postPriority}

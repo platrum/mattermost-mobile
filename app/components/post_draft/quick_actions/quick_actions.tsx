@@ -9,6 +9,7 @@ import FileAction from './file_quick_action';
 import ImageAction from './image_quick_action';
 import InputAction from './input_quick_action';
 import PostPriorityAction from './post_priority_action';
+import VoiceAction from './voice_quick_action';
 
 type Props = {
     testID?: string;
@@ -21,10 +22,14 @@ type Props = {
     // Draft Handler
     value: string;
     updateValue: (value: string) => void;
-    addFiles: (file: FileInfo[]) => void;
+    addFiles: (file: ExtractedFileInfo[]) => void;
+    channelId: string;
+    currentUserId: string;
     postPriority: PostPriority;
+    rootId: string;
     updatePostPriority: (postPriority: PostPriority) => void;
     focus: () => void;
+    sendMessage: () => void;
 }
 
 const style = StyleSheet.create({
@@ -45,9 +50,13 @@ export default function QuickActions({
     maxFileCount,
     updateValue,
     addFiles,
+    channelId,
+    currentUserId,
     postPriority,
+    rootId,
     updatePostPriority,
     focus,
+    sendMessage,
 }: Props) {
     const atDisabled = value[value.length - 1] === '@';
     const slashDisabled = value.length > 0;
@@ -57,6 +66,7 @@ export default function QuickActions({
     const fileActionTestID = `${testID}.file_action`;
     const imageActionTestID = `${testID}.image_action`;
     const cameraActionTestID = `${testID}.camera_action`;
+    const voiceActionTestID = `${testID}.voice_action`;
     const postPriorityActionTestID = `${testID}.post_priority_action`;
 
     const uploadProps = {
@@ -96,6 +106,14 @@ export default function QuickActions({
             />
             <CameraAction
                 testID={cameraActionTestID}
+                {...uploadProps}
+            />
+            <VoiceAction
+                testID={voiceActionTestID}
+                onVoiceReadyToSend={sendMessage}
+                channelId={channelId}
+                currentUserId={currentUserId}
+                rootId={rootId}
                 {...uploadProps}
             />
             {isPostPriorityEnabled && canShowPostPriority && (

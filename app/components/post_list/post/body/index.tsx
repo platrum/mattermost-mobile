@@ -7,6 +7,7 @@ import {type LayoutChangeEvent, type StyleProp, View, type ViewStyle} from 'reac
 import Files from '@components/files';
 import FormattedText from '@components/formatted_text';
 import JumboEmoji from '@components/jumbo_emoji';
+import AudioFile from '@components/files/audio_file';
 import {Screens} from '@constants';
 import {THREAD} from '@constants/screens';
 import {isEdited as postEdited, isPostFailed} from '@utils/post';
@@ -98,6 +99,8 @@ const Body = ({
 
     const nBindings = Array.isArray(post.props?.app_bindings) ? post.props?.app_bindings.length : 0;
     const nAttachments = Array.isArray(post.props?.attachments) ? post.props?.attachments.length : 0;
+    const customVoiceFileId = post.type === 'custom_voice' && typeof post.props?.fileId === 'string' ? post.props.fileId : '';
+    const hasCustomVoice = Boolean(customVoiceFileId);
 
     const isReplyPost = Boolean(post.rootId && (!isEphemeral || !hasBeenDeleted) && location !== THREAD);
     const hasContent = Boolean((post.metadata?.embeds?.length || (appsEnabled && nBindings)) || nAttachments);
@@ -154,7 +157,7 @@ const Body = ({
                 value={post.message}
             />
         );
-    } else if (post.message.length) {
+    } else if (post.message.length && !hasCustomVoice) {
         message = (
             <Message
                 highlight={highlight}
@@ -170,12 +173,30 @@ const Body = ({
         );
     }
 
+    const customVoice = hasCustomVoice ? (
+        <AudioFile
+            file={{
+                id: customVoiceFileId,
+                name: 'voice-message.mp3',
+                extension: 'mp3',
+                mime_type: 'audio/mpeg',
+                user_id: post.userId,
+                post_id: post.id,
+                size: 0,
+                has_preview_image: false,
+                height: 0,
+                width: 0,
+            }}
+        />
+    ) : null;
+
     const acknowledgementsVisible = isPostAcknowledgementEnabled && post.metadata?.priority?.requested_ack;
     const reactionsVisible = hasReactions && showAddReaction;
     if (!hasBeenDeleted) {
         body = (
             <View style={style.messageBody}>
                 {message}
+                {customVoice}
                 {hasContent &&
                 <Content
                     isReplyPost={isReplyPost}

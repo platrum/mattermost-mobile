@@ -2,7 +2,6 @@
 // See LICENSE.txt for license information.
 
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {useIntl} from 'react-intl';
 import {
     View,
     TouchableOpacity,
@@ -12,10 +11,10 @@ import {
 } from 'react-native';
 import Video, {type OnLoadData, type OnProgressData, type OnVideoErrorData, type VideoRef} from 'react-native-video';
 
+import {buildFileUrl} from '@actions/remote/file';
+import {useServerUrl} from '@context/server';
 import {useTheme} from '@context/theme';
-import {useDownloadFileAndPreview} from '@hooks/files';
 import useThrottled from '@hooks/throttled';
-import {alertDownloadDocumentDisabled} from '@utils/document';
 import {logDebug} from '@utils/log';
 import {changeOpacity, makeStyleSheetFromTheme} from '@utils/theme';
 import {typography} from '@utils/typography';
@@ -26,7 +25,6 @@ import ProgressBar from '../progress_bar';
 
 type Props = {
     file: FileInfo;
-    canDownloadFiles: boolean;
 }
 
 const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
@@ -53,9 +51,6 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     playIcon: {
         color: theme.buttonBg,
     },
-    downloadIcon: {
-        color: changeOpacity(theme.centerChannelColor, 0.56),
-    },
     progressBar: {
         flex: 1,
     },
@@ -65,8 +60,8 @@ const getStyleSheet = makeStyleSheetFromTheme((theme: Theme) => ({
     },
 }));
 
-const AudioFile = ({file, canDownloadFiles}: Props) => {
-    const intl = useIntl();
+const AudioFile = ({file}: Props) => {
+    const serverUrl = useServerUrl();
     const theme = useTheme();
     const style = getStyleSheet(theme);
     const [hasPaused, setHasPaused] = useState<boolean>(true);
@@ -91,22 +86,26 @@ const AudioFile = ({file, canDownloadFiles}: Props) => {
         return () => null;
     }, [hasEnded]);
 
-    const source = useMemo(() => ({uri: file.uri}), [file.uri]);
+    const source = useMemo(() => {
+        if (file.uri) {
+            return {uri: file.uri};
+        }
 
-    const {toggleDownloadAndPreview} = useDownloadFileAndPreview();
+        if (file.localPath) {
+            const prefix = file.localPath.startsWith('file://') ? '' : 'file://';
+            return {uri: `${prefix}${file.localPath}`};
+        }
+
+        if (file.id) {
+            return {uri: buildFileUrl(serverUrl, file.id, file.update_at)};
+        }
+
+        return {uri: ''};
+    }, [file.id, file.localPath, file.update_at, file.uri, serverUrl]);
 
     const onPlayPress = () => {
         setHasPaused(!hasPaused);
     };
-
-    const onDownloadPress = useCallback(async () => {
-        if (!canDownloadFiles) {
-            alertDownloadDocumentDisabled(intl);
-            return;
-        }
-
-        toggleDownloadAndPreview(file);
-    }, [canDownloadFiles, intl, file, toggleDownloadAndPreview]);
 
     const loadTimeInMinutes = useCallback((timeInSeconds: number) => {
         const minutes = Math.floor(timeInSeconds / 60);
@@ -208,16 +207,6 @@ const AudioFile = ({file, canDownloadFiles}: Props) => {
                 </View>
 
                 <Text style={style.timerText}>{timeInMinutes}</Text>
-
-                <TouchableOpacity
-                    onPress={onDownloadPress}
-                >
-                    <CompassIcon
-                        name='download-outline'
-                        size={24}
-                        style={style.downloadIcon}
-                    />
-                </TouchableOpacity>
             </View>
         </TouchableWithoutFeedback>
     );
