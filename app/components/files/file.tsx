@@ -239,7 +239,6 @@ const File = ({
             <Animated.View style={[styles, asCard ? style.imageVideo : style.audioFile]}>
                 <AudioFile
                     file={file}
-                    canDownloadFiles={canDownloadFiles}
                 />
             </Animated.View>
         );
