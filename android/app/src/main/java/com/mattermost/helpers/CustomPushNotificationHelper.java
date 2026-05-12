@@ -410,14 +410,18 @@ public class CustomPushNotificationHelper {
     }
 
     private static String getConversationTitle(Bundle bundle) {
-        String title = bundle.getString("channel_name");
+        String title = bundle.getString("channel_display_name");
 
         if (android.text.TextUtils.isEmpty(title)) {
-            title = bundle.getString("sender_name");
+            title = bundle.getString("channel_name");
         }
 
         if (android.text.TextUtils.isEmpty(title)) {
             title = bundle.getString("title", "");
+        }
+
+        if (android.text.TextUtils.isEmpty(title)) {
+            title = bundle.getString("sender_name");
         }
 
         return title;
@@ -455,8 +459,14 @@ public class CustomPushNotificationHelper {
     }
 
     private static String getSenderName(Bundle bundle) {
+        String fromWebhook = bundle.getString("from_webhook");
+        String overrideUsername = bundle.getString("override_username");
+        if ("true".equals(fromWebhook) && !TextUtils.isEmpty(overrideUsername)) {
+            return overrideUsername;
+        }
+
         String senderName = bundle.getString("sender_name");
-        if (senderName != null) {
+        if (!TextUtils.isEmpty(senderName)) {
             return senderName;
         }
 
@@ -487,10 +497,7 @@ public class CustomPushNotificationHelper {
 
     private static void setMessagingStyleConversationTitle(NotificationCompat.MessagingStyle messagingStyle, String conversationTitle, Bundle bundle) {
         String channelName = getConversationTitle(bundle);
-        String senderName = bundle.getString("sender_name");
-        if (TextUtils.isEmpty(senderName)) {
-            senderName = getSenderName(bundle);
-        }
+        String senderName = getSenderName(bundle);
 
         if (conversationTitle != null && !channelName.equals(senderName)) {
             messagingStyle.setConversationTitle(conversationTitle);
