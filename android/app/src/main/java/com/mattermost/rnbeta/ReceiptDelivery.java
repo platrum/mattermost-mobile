@@ -16,7 +16,7 @@ import com.mattermost.turbolog.TurboLog;
 import okhttp3.Response;
 
 public class ReceiptDelivery {
-    private static final String[] ackKeys = new String[]{"post_id", "root_id", "category", "message", "team_id", "channel_id", "channel_name", "type", "sender_id", "sender_name", "version"};
+    private static final String[] ackKeys = new String[]{"post_id", "root_id", "category", "message", "team_id", "channel_id", "channel_name", "channel_display_name", "type", "sender_id", "sender_name", "override_username", "override_icon_url", "from_webhook", "version"};
 
     public static Bundle send(final String ackId, final String serverUrl, final String postId, final String type, final boolean isIdLoaded) {
         TurboLog.Companion.i("ReactNative", String.format("Send receipt delivery ACK=%s TYPE=%s to URL=%s with ID-LOADED=%s", ackId, type, serverUrl, isIdLoaded));

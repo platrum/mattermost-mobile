@@ -43,7 +43,7 @@ public class PushNotification: NSObject {
                         notification.body = body
                     }
                     
-                    if let title = idLoadedNotification["channel_name"] as? String {
+                    if let title = (idLoadedNotification["channel_display_name"] as? String) ?? (idLoadedNotification["channel_name"] as? String) {
                         notification.title = title
                     }
                     
@@ -112,7 +112,7 @@ public class PushNotification: NSObject {
         {
             os_log(OSLogType.default, "Mattermost Notifications: parsed json response")
             var userInfo = [AnyHashable:Any]()
-            let userInfoKeys = ["channel_name", "team_id", "sender_id", "sender_name", "root_id", "override_username", "override_icon_url", "from_webhook", "message"]
+            let userInfoKeys = ["channel_name", "channel_display_name", "team_id", "sender_id", "sender_name", "root_id", "override_username", "override_icon_url", "from_webhook", "message"]
             for key in userInfoKeys {
               if let value = json[key] as? String {
                   userInfo[key] = value

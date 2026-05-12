@@ -69,6 +69,7 @@ class NotificationService: UNNotificationServiceExtension {
     if #available(iOSApplicationExtension 15.0, *) {
       let overrideUsername = notification.userInfo["override_username"] as? String
       let senderId = notification.userInfo["sender_id"] as? String
+      let fromWebhook = notification.userInfo["from_webhook"] as? String
 
       guard let serverUrl = notification.userInfo["server_url"] as? String
       else {
@@ -78,9 +79,14 @@ class NotificationService: UNNotificationServiceExtension {
       }
 
       let overrideIconUrl = notification.userInfo["override_icon_url"] as? String
+      let hasOverrideIcon = !(overrideIconUrl ?? "").isEmpty
+      let isWebhook = fromWebhook == "true"
+      let shouldFetchAvatar = hasOverrideIcon || (!isWebhook && senderId != nil)
+      let imageSenderId = isWebhook ? "" : (senderId ?? "")
+
       TurboLogIOSNative.TurboLogger.write(level: .info, message: "Mattermost Notifications: Fetching profile Image in server", serverUrl, "for sender", senderId ?? overrideUsername ?? "no sender is set")
-      if senderId != nil || overrideIconUrl != nil {
-        PushNotification.default.fetchProfileImageSync(serverUrl, senderId: senderId ?? "", overrideIconUrl: overrideIconUrl) {[weak self] data in
+      if shouldFetchAvatar {
+        PushNotification.default.fetchProfileImageSync(serverUrl, senderId: imageSenderId, overrideIconUrl: overrideIconUrl) {[weak self] data in
           self?.sendMessageIntentCompletion(data)
         }
       } else {
@@ -133,27 +139,30 @@ class NotificationService: UNNotificationServiceExtension {
   private func sendMessageIntentCompletion(_ avatarData: Data?) {
     guard let notification = bestAttemptContent else { return }
     if #available(iOSApplicationExtension 15.0, *),
-       let imgData = avatarData,
        let channelId = notification.userInfo["channel_id"] as? String {
       TurboLogIOSNative.TurboLogger.write(level: .info, message: "Mattermost Notifications: creating intent")
 
       let isCRTEnabled = notification.userInfo["is_crt_enabled"] as? Bool ?? false
       let rootId = notification.userInfo["root_id"] as? String ?? ""
       let senderName = notification.userInfo["sender_name"] as? String
-      let channelName = notification.userInfo["channel_name"] as? String
+      let channelDisplayName = notification.userInfo["channel_display_name"] as? String
+      let channelName = channelDisplayName ?? notification.userInfo["channel_name"] as? String
       var message = (notification.userInfo["message"] as? String ?? "")
       let overrideUsername = notification.userInfo["override_username"] as? String
+      let fromWebhook = notification.userInfo["from_webhook"] as? String
       let senderId = notification.userInfo["sender_id"] as? String
-      let senderIdentifier = overrideUsername ?? senderId
-      let avatar = INImage(imageData: imgData) as INImage?
+      let senderIdentifier = senderId ?? overrideUsername
+      let senderDisplayName = (fromWebhook == "true" && !(overrideUsername ?? "").isEmpty) ? overrideUsername : senderName
+      let avatar = avatarData.map { INImage(imageData: $0) }
 
       var conversationId = channelId
       if isCRTEnabled && !rootId.isEmpty {
         conversationId = rootId
       }
+      notification.threadIdentifier = conversationId
       
       if channelName == nil && message == "",
-         let senderName = senderName,
+         let senderName = senderDisplayName,
          let body = bestAttemptContent?.body {
         message = body.replacingOccurrences(of: "\(senderName) ", with: "")
         bestAttemptContent?.body = message
@@ -162,15 +171,16 @@ class NotificationService: UNNotificationServiceExtension {
       let handle = INPersonHandle(value: senderIdentifier, type: .unknown)
       let sender = INPerson(personHandle: handle,
                             nameComponents: nil,
-                            displayName: channelName ?? senderName,
+                            displayName: senderDisplayName ?? senderName,
                             image: avatar,
                             contactIdentifier: nil,
                             customIdentifier: nil)
+      let groupName = channelName != nil ? INSpeakableString(spokenPhrase: channelName!) : nil
 
       let intent = INSendMessageIntent(recipients: nil,
                                        outgoingMessageType: .outgoingMessageText,
                                        content: message,
-                                       speakableGroupName: nil,
+                                       speakableGroupName: groupName,
                                        conversationIdentifier: conversationId,
                                        serviceName: nil,
                                        sender: sender,
