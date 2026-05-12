@@ -48,7 +48,7 @@ class CustomPushNotification(
         val channelId = initialData.getString("channel_id")
         val signature = initialData.getString("signature")
         val isIdLoaded = initialData.getString("id_loaded") == "true"
-        val notificationId = NotificationHelper.getNotificationId(initialData)
+        val notificationId = getStableNotificationId(initialData)
         val serverUrl = addServerUrlToBundle(initialData)
         Network.init(mContext)
 
@@ -173,5 +173,20 @@ class CustomPushNotification(
             }
         }
         return serverUrl
+    }
+
+    private fun getStableNotificationId(notification: Bundle): Int {
+        val type = notification.getString("type")
+        if (type == CustomPushNotificationHelper.PUSH_TYPE_MESSAGE) {
+            val channelId = notification.getString("channel_id")
+            val rootId = notification.getString("root_id")
+            val isCRTEnabled = notification.getString("is_crt_enabled") == "true"
+            val conversationId = if (isCRTEnabled && !rootId.isNullOrEmpty()) rootId else channelId
+            if (!conversationId.isNullOrEmpty()) {
+                return conversationId.hashCode()
+            }
+        }
+
+        return NotificationHelper.getNotificationId(notification)
     }
 }

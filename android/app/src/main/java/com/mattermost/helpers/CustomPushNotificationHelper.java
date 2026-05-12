@@ -541,6 +541,12 @@ public class CustomPushNotificationHelper {
     private static void setNotificationMessagingStyle(Context context, NotificationCompat.Builder notification, Bundle bundle) {
         NotificationCompat.MessagingStyle messagingStyle = getMessagingStyle(context, bundle);
         notification.setStyle(messagingStyle);
+
+        String conversationTitle = getConversationTitle(bundle);
+        String senderName = getSenderName(bundle);
+        if (!TextUtils.isEmpty(conversationTitle) && !TextUtils.equals(conversationTitle, senderName)) {
+            notification.setSubText(conversationTitle);
+        }
     }
 
     private static void setNotificationGroup(NotificationCompat.Builder notification, String channelId, boolean setAsSummary) {
